@@ -5,6 +5,8 @@
 set github token
 
 ```
+export GITHUB_TAG=latest
+export GITHUB_REPO=NubeIO/rubix-service
 export GITHUB_TOKEN=YOUR-token
 (cd pkg/github && go test -run TestInfo)
 ```

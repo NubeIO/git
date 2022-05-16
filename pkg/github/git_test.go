@@ -16,15 +16,21 @@ export GITHUB_TOKEN=YOUR-token
 func githubToken() string {
 	return os.Getenv("GITHUB_TOKEN")
 }
+func githubRepo() string {
+	return os.Getenv("GITHUB_REPO")
+}
+func githubTag() string {
+	return os.Getenv("GITHUB_TAG")
+}
 
 func TestInfo(t *testing.T) {
 
-	fmt.Println("GITHUB_TOKEN", githubToken())
+	fmt.Println("GITHUB_TOKEN", githubToken(), "REPO", Repository(githubRepo()), "TAG", githubTag())
 
 	ctx := context.Background()
 	client := NewClient(githubToken(), true)
 
-	resp, err := client.GetRelease(ctx, NubeRubixService, TagLatest)
+	resp, err := client.GetRelease(ctx, Repository(githubRepo()), githubTag())
 	if err != nil {
 		fmt.Println(err)
 		return
