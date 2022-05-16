@@ -12,28 +12,13 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"time"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "github-dl",
-	Short: "Download a github repository release asset.",
-	Long: fmt.Sprintf(`Download a github repository release asset.
-
-version: %s
-commit-hash: %s
-last-modified: %s
-
-Example:
-github-dl --repo cli/cli --asset gh --dest bin --pick gh
-github-dl --repo golangci/golangci-lint --asset golangci-lint --pick golangci-lint
-github-dl --repo uber/prototool --asset prototool --target prototool
-github-dl --repo google/protobuf --asset protoc --target protoc --pick protoc`,
-		version,
-		commitHash,
-		lastModified().Format(time.RFC3339),
-	),
+	Use:           "github-dl",
+	Short:         "Download a github repository release asset.",
+	Long:          fmt.Sprintf(`Download a github repository release asset`),
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	RunE: func(cmd *cobra.Command, args []string) error {

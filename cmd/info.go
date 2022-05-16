@@ -11,11 +11,7 @@ import (
 var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Show github repository release info.",
-	Long: `Show github repository release info.
-
-Example:
-github-dl --repo iwaltgen/github-dl info
-github-dl --repo iwaltgen/github-dl info --tag v0.1.0`,
+	Long:  `Show github repository release info.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := github.NewClient(githubToken(), verbose)
