@@ -21,29 +21,31 @@ var rootCmd = &cobra.Command{
 	Long:          fmt.Sprintf(`Download a github repository release asset`),
 	SilenceErrors: true,
 	SilenceUsage:  true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		client := github.NewClient(githubToken(), verbose)
+	RunE:          runRoot,
+}
 
-		opt, err := makeAssetOptions()
-		if err != nil {
-			color.Magenta(err.Error())
-			fmt.Println(cmd.UsageString())
-			os.Exit(1)
-		}
+func runRoot(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+	client := github.NewClient(githubToken(), verbose)
 
-		if verbose {
-			color.Cyan("repository:\t%s", repo)
-			color.Cyan("release tag:\t%s", tag)
-		}
+	opt, err := makeAssetOptions()
+	if err != nil {
+		color.Magenta(err.Error())
+		fmt.Println(cmd.UsageString())
+		os.Exit(1)
+	}
 
-		asset, observable, err := client.DownloadReleaseAsset(ctx, github.Repository(repo), opt)
-		if err != nil {
-			return err
-		}
+	if verbose {
+		color.Cyan("repository:\t%s", repo)
+		color.Cyan("release tag:\t%s", tag)
+	}
 
-		return showDownloadProgress(ctx, asset, observable)
-	},
+	asset, observable, err := client.DownloadReleaseAsset(ctx, github.Repository(repo), opt)
+	if err != nil {
+		return err
+	}
+
+	return showDownloadProgress(ctx, asset, observable)
 }
 
 var (

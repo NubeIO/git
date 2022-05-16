@@ -12,39 +12,41 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Fetch github repository release list.",
 	Long:  `Fetch github repository release list.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		client := github.NewClient(githubToken(), verbose)
-		opt := &github.ListOptions{
-			Page:    page,
-			PerPage: perPage,
+	RunE:  runList,
+}
+
+func runList(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+	client := github.NewClient(githubToken(), verbose)
+	opt := &github.ListOptions{
+		Page:    page,
+		PerPage: perPage,
+	}
+
+	resp, err := client.ListReleases(ctx, github.Repository(repo), opt)
+	if err != nil {
+		return err
+	}
+
+	if !verbose {
+		var results []*repoRelease
+		for _, v := range resp {
+			results = append(results, &repoRelease{
+				ID:   *v.ID,
+				Name: *v.Name,
+				Tag:  *v.TagName,
+				URL:  *v.HTMLURL,
+			})
 		}
 
-		resp, err := client.ListReleases(ctx, github.Repository(repo), opt)
-		if err != nil {
-			return err
-		}
+		return printPrettyJSON(Cyan, results)
+	}
 
-		if !verbose {
-			var results []*repoRelease
-			for _, v := range resp {
-				results = append(results, &repoRelease{
-					ID:   *v.ID,
-					Name: *v.Name,
-					Tag:  *v.TagName,
-					URL:  *v.HTMLURL,
-				})
-			}
+	color.Cyan("repository:\t%s", repo)
+	color.Cyan("page-num:\t%d", page)
+	color.Cyan("per-page:\t%d", perPage)
 
-			return printPrettyJSON(Cyan, results)
-		}
-
-		color.Cyan("repository:\t%s", repo)
-		color.Cyan("page-num:\t%d", page)
-		color.Cyan("per-page:\t%d", perPage)
-
-		return printPrettyJSON(Cyan, resp)
-	},
+	return printPrettyJSON(Cyan, resp)
 }
 
 type repoRelease struct {

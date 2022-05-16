@@ -12,22 +12,23 @@ var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Show github repository release info.",
 	Long:  `Show github repository release info.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		client := github.NewClient(githubToken(), verbose)
+	RunE:  runInfo,
+}
 
-		resp, err := client.GetRelease(ctx, github.Repository(repo), tag)
-		if err != nil {
-			return err
-		}
+func runInfo(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+	client := github.NewClient(githubToken(), verbose)
 
-		if verbose {
-			color.Cyan("repository:\t%s", repo)
-			color.Cyan("release tag:\t%s", tag)
-		}
+	resp, err := client.GetRelease(ctx, github.Repository(repo), tag)
+	if err != nil {
+		return err
+	}
 
-		return printPrettyJSON(Cyan, resp)
-	},
+	if verbose {
+		color.Cyan("repository:\t%s", repo)
+		color.Cyan("release tag:\t%s", tag)
+	}
+	return printPrettyJSON(Cyan, resp)
 }
 
 func init() {

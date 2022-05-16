@@ -39,10 +39,7 @@ func NewClient(accessToken string, verbose bool) *Client {
 }
 
 // ListReleases get release list.
-func (c *Client) ListReleases(ctx context.Context,
-	repo Repository,
-	opt *ListOptions,
-) ([]*RepositoryRelease, error) {
+func (c *Client) ListReleases(ctx context.Context, repo Repository, opt *ListOptions) ([]*RepositoryRelease, error) {
 	if err := repo.valid(); err != nil {
 		return nil, err
 	}
@@ -52,10 +49,7 @@ func (c *Client) ListReleases(ctx context.Context,
 }
 
 // GetRelease gets release info.
-func (c *Client) GetRelease(ctx context.Context,
-	repo Repository,
-	tag string,
-) (*RepositoryRelease, error) {
+func (c *Client) GetRelease(ctx context.Context, repo Repository, tag string) (*RepositoryRelease, error) {
 	if err := repo.valid(); err != nil {
 		return nil, err
 	}
@@ -73,10 +67,7 @@ func (c *Client) GetRelease(ctx context.Context,
 // first returns release asset info.
 // second returns download progress info or error info use a stream.
 // third returns initialize error info.
-func (c *Client) DownloadReleaseAsset(ctx context.Context,
-	repo Repository,
-	opt *AssetOptions,
-) (*ReleaseAsset, rxgo.Observable, error) {
+func (c *Client) DownloadReleaseAsset(ctx context.Context, repo Repository, opt *AssetOptions) (*ReleaseAsset, rxgo.Observable, error) {
 	if err := repo.valid(); err != nil {
 		return nil, nil, err
 	}
@@ -110,7 +101,6 @@ func (c *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptions)
 		}
 
 		matchedArch := strings.Contains(name, strings.ToLower(opt.Arch))
-		fmt.Println("matchedArch", matchedArch)
 		if !matchedArch {
 			for _, v := range opt.ArchAlias {
 				if matchedArch = strings.Contains(name, v); matchedArch {
