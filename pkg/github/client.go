@@ -1,0 +1,242 @@
+package github
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+
+	"github.com/fatih/color"
+	ggithub "github.com/google/go-github/v32/github"
+	"github.com/mattn/go-zglob"
+	"github.com/reactivex/rxgo/v2"
+	"golang.org/x/oauth2"
+
+	"github.com/NubeIO/git/pkg/archive"
+)
+
+// Client is a GitHub oauth2 client.
+type Client struct {
+	client  *ggithub.Client
+	verbose bool
+}
+
+// NewClient creates github client.
+func NewClient(accessToken string, verbose bool) *Client {
+	ctx := context.Background()
+	tokenSource := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: accessToken},
+	)
+	return &Client{
+		client:  ggithub.NewClient(oauth2.NewClient(ctx, tokenSource)),
+		verbose: verbose,
+	}
+}
+
+// ListReleases get release list.
+func (c *Client) ListReleases(ctx context.Context,
+	repo Repository,
+	opt *ListOptions,
+) ([]*RepositoryRelease, error) {
+	if err := repo.valid(); err != nil {
+		return nil, err
+	}
+
+	releases, _, err := c.client.Repositories.ListReleases(ctx, repo.Owner(), repo.Name(), opt)
+	return releases, err
+}
+
+// GetRelease gets release info.
+func (c *Client) GetRelease(ctx context.Context,
+	repo Repository,
+	tag string,
+) (*RepositoryRelease, error) {
+	if err := repo.valid(); err != nil {
+		return nil, err
+	}
+
+	if tag == "latest" {
+		release, _, err := c.client.Repositories.GetLatestRelease(ctx, repo.Owner(), repo.Name())
+		return release, err
+	}
+
+	release, _, err := c.client.Repositories.GetReleaseByTag(ctx, repo.Owner(), repo.Name(), tag)
+	return release, err
+}
+
+// DownloadReleaseAsset downloads a release asset file.
+// first returns release asset info.
+// second returns download progress info or error info use a stream.
+// third returns initialize error info.
+func (c *Client) DownloadReleaseAsset(ctx context.Context,
+	repo Repository,
+	opt *AssetOptions,
+) (*ReleaseAsset, rxgo.Observable, error) {
+	if err := repo.valid(); err != nil {
+		return nil, nil, err
+	}
+
+	release, err := c.GetRelease(ctx, repo, opt.Tag)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	asset := c.findReleaseAsset(release, opt)
+	if asset == nil {
+		err := fmt.Errorf("not found asset: [name: %s, os: %s, arch: %s]", opt.Name, opt.OS, opt.Arch)
+		return nil, nil, err
+	}
+
+	observable, err := c.downloadAsset(asset, opt)
+	return asset, observable, err
+}
+
+func (c *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptions) *ReleaseAsset {
+	for _, asset := range release.Assets {
+		name := strings.ToLower(asset.GetName())
+		matchedName := strings.Contains(name, strings.ToLower(opt.Name))
+		matchedOS := strings.Contains(name, strings.ToLower(opt.OS))
+		if !matchedOS {
+			for _, v := range opt.OSAlias {
+				if matchedOS = strings.Contains(name, v); matchedOS {
+					break
+				}
+			}
+		}
+
+		matchedArch := strings.Contains(name, strings.ToLower(opt.Arch))
+		fmt.Println("matchedArch", matchedArch)
+		if !matchedArch {
+			for _, v := range opt.ArchAlias {
+				if matchedArch = strings.Contains(name, v); matchedArch {
+					break
+				}
+			}
+		}
+
+		if matchedName && matchedArch {
+			return asset
+		}
+	}
+	return nil
+}
+
+func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) (rxgo.Observable, error) {
+	url := asset.GetBrowserDownloadURL()
+	if c.verbose {
+		color.Cyan("release dl url:\t%s", url)
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	return rxgo.Defer([]rxgo.Producer{func(ctx context.Context, next chan<- rxgo.Item) {
+		defer resp.Body.Close()
+
+		filename := path.Base(url)
+		destination := filepath.Join(opt.DestPath, filename)
+		tempExt := ".rubix-downloads"
+
+		if err := os.MkdirAll(filepath.Dir(destination), os.ModePerm); err != nil {
+			next <- rxgo.Error(err)
+			return
+		}
+		file, err := os.Create(destination + tempExt)
+		if err != nil {
+			next <- rxgo.Error(err)
+			return
+		}
+		defer file.Close()
+
+		counter := NewWriteCounter(next, int64(asset.GetSize()))
+		if _, err = io.Copy(file, io.TeeReader(resp.Body, counter)); err != nil {
+			next <- rxgo.Error(err)
+			return
+		}
+
+		if err := os.Rename(destination+tempExt, destination); err != nil {
+			next <- rxgo.Error(err)
+		}
+		defer func() {
+			_ = os.Remove(destination + tempExt)
+			_ = os.Remove(destination)
+		}()
+
+		if !archive.Support(filename) {
+			if opt.Target != "" {
+				newDestination := filepath.Join(opt.DestPath, opt.Target)
+				if err := os.Rename(destination, newDestination); err != nil {
+					next <- rxgo.Error(err)
+				}
+			}
+			return
+		}
+
+		if opt.PickPattern != "" {
+			c.extractFile(next, destination, opt)
+			return
+		}
+
+		newDestination := filepath.Join(opt.DestPath, opt.Target)
+		if err := archive.UnArchive(destination, newDestination); err != nil {
+			next <- rxgo.Error(err)
+			return
+		}
+	}}), nil
+}
+
+func (c *Client) extractFile(ch chan<- rxgo.Item, source string, opt *AssetOptions) {
+	tempDir, err := ioutil.TempDir(os.TempDir(), "github-dl")
+	if err != nil {
+		ch <- rxgo.Error(err)
+		return
+	}
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
+
+	if err := archive.UnArchive(source, tempDir); err != nil {
+		ch <- rxgo.Error(err)
+		return
+	}
+
+	matches, err := zglob.Glob(filepath.Join(tempDir, "**", opt.PickPattern))
+	if err != nil {
+		ch <- rxgo.Error(err)
+		return
+	}
+
+	if c.verbose {
+		color.Cyan("pick matches:\t%v", strings.Join(matches, "\n\t\t"))
+	}
+
+	for i, path := range matches {
+		if opt.Target != "" {
+			suffix := ""
+			if i != 0 {
+				suffix = fmt.Sprintf(".%d", i)
+			}
+
+			destination := filepath.Join(opt.DestPath, opt.Target+suffix)
+			if err := os.Rename(path, destination); err != nil {
+				ch <- rxgo.Error(err)
+				return
+			}
+			continue
+		}
+
+		filename := filepath.Base(path)
+		destination := filepath.Join(opt.DestPath, filename)
+		if err := os.Rename(path, destination); err != nil {
+			ch <- rxgo.Error(err)
+			return
+		}
+	}
+}
