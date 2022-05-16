@@ -26,19 +26,17 @@ const TagLatest = "latest"
 
 // Client is a GitHub oauth2 client.
 type Client struct {
-	client  *github.Client
-	verbose bool
+	client *github.Client
 }
 
 // NewClient creates github client.
-func NewClient(accessToken string, verbose bool) *Client {
+func NewClient(accessToken string) *Client {
 	ctx := context.Background()
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: accessToken},
 	)
 	return &Client{
-		client:  github.NewClient(oauth2.NewClient(ctx, tokenSource)),
-		verbose: verbose,
+		client: github.NewClient(oauth2.NewClient(ctx, tokenSource)),
 	}
 }
 

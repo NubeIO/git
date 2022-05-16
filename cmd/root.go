@@ -25,8 +25,7 @@ var rootCmd = &cobra.Command{
 
 func runRoot(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	client := git.NewClient(githubToken(), verbose)
-
+	client := git.NewClient(githubToken())
 	opt, err := makeAssetOptions()
 	if err != nil {
 		color.Magenta(err.Error())
@@ -34,13 +33,7 @@ func runRoot(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	if verbose {
-		color.Cyan("repository:\t%s", repo)
-		color.Cyan("release tag:\t%s", tag)
-	}
-
 	ass, err := client.DownloadReleaseAsset(ctx, git.Repository(repo), opt)
-
 	if err != nil {
 		log.Errorln(err)
 		return
@@ -50,7 +43,6 @@ func runRoot(cmd *cobra.Command, args []string) {
 }
 
 var (
-	verbose  bool
 	tokenEnv string
 	token    string
 	repo     string
@@ -69,7 +61,6 @@ var (
 
 func init() {
 	pFlagSet := rootCmd.PersistentFlags()
-	pFlagSet.BoolVarP(&verbose, "verbose", "v", verbose, "verbose output")
 	pFlagSet.StringVar(&tokenEnv, "token-env", "GITHUB_TOKEN", "github oauth2 token environment name")
 	pFlagSet.StringVar(&token, "token", token, "github oauth2 token value (optional)")
 	pFlagSet.StringVarP(&repo, "repo", "", "NubeIO/rubix-bios", "github repository (owner/name)")

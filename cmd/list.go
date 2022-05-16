@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 	git "github.com/NubeIO/git/pkg/github"
+	pprint "github.com/NubeIO/git/pkg/helpers/print"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -18,7 +18,7 @@ var listCmd = &cobra.Command{
 
 func runList(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	client := git.NewClient(githubToken(), verbose)
+	client := git.NewClient(githubToken())
 	opt := &git.ListOptions{
 		Page:    page,
 		PerPage: perPage,
@@ -29,25 +29,16 @@ func runList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !verbose {
-		var results []*repoRelease
-		for _, v := range resp {
-			results = append(results, &repoRelease{
-				ID:   *v.ID,
-				Name: *v.Name,
-				Tag:  *v.TagName,
-				URL:  *v.HTMLURL,
-			})
-		}
-
-		return printPrettyJSON(Cyan, results)
+	var results []*repoRelease
+	for _, v := range resp {
+		results = append(results, &repoRelease{
+			ID:   *v.ID,
+			Name: *v.Name,
+			Tag:  *v.TagName,
+			URL:  *v.HTMLURL,
+		})
 	}
-
-	color.Cyan("repository:\t%s", repo)
-	color.Cyan("page-num:\t%d", page)
-	color.Cyan("per-page:\t%d", perPage)
-
-	return printPrettyJSON(Cyan, resp)
+	return pprint.PrintPrettyJSON(pprint.Cyan, results)
 }
 
 type repoRelease struct {

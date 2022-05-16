@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"github.com/NubeIO/git/pkg/github"
-	"github.com/fatih/color"
+	"github.com/NubeIO/git/pkg/helpers/print"
 	"github.com/spf13/cobra"
 )
 
@@ -17,18 +17,18 @@ var infoCmd = &cobra.Command{
 
 func runInfo(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	client := git.NewClient(githubToken(), verbose)
+	client := git.NewClient(githubToken())
 
 	resp, err := client.GetRelease(ctx, git.Repository(repo), tag)
 	if err != nil {
 		return err
 	}
 
-	if verbose {
-		color.Cyan("repository:\t%s", repo)
-		color.Cyan("release tag:\t%s", tag)
-	}
-	return printPrettyJSON(Cyan, resp)
+	var results repoRelease
+	results.URL = resp.GetAssetsURL()
+	results.Name = resp.GetName()
+
+	return pprint.PrintPrettyJSON(pprint.Cyan, results)
 }
 
 func init() {
