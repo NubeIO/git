@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/NubeIO/git/pkg/archive"
-	"github.com/fatih/color"
 	"github.com/google/go-github/v32/github"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -128,10 +127,7 @@ func (c *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptions)
 
 func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) error {
 	url := asset.GetBrowserDownloadURL()
-	if c.verbose {
-		color.Cyan("release dl url:\t%s", url)
-	}
-
+	log.Infof("release dl url:%s", url)
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -146,6 +142,7 @@ func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) error {
 		return err
 	}
 	file, err := os.Create(destination + tempExt)
+	log.Infof("make tmp dir:%s", destination+tempExt)
 	if err != nil {
 		return err
 	}
@@ -158,8 +155,11 @@ func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) error {
 	if err := os.Rename(destination+tempExt, destination); err != nil {
 		return err
 	}
+	log.Infof("rename tmp old: %s new:%s", destination+tempExt, destination)
 	defer func() {
+		log.Infof("delete:%s", destination+tempExt)
 		_ = os.Remove(destination + tempExt)
+		log.Infof("delete:%s", destination)
 		_ = os.Remove(destination)
 	}()
 
@@ -174,10 +174,10 @@ func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) error {
 	}
 
 	newDestination := filepath.Join(opt.DestPath, opt.Target)
+	log.Infof("new destination of zip/tar:%s", newDestination)
 	if err := archive.UnArchive(destination, newDestination); err != nil {
 		return err
 	}
-
 	return nil
 
 }

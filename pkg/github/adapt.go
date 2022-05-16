@@ -2,9 +2,8 @@ package git
 
 import (
 	"fmt"
+	"github.com/google/go-github/v32/github"
 	"strings"
-
-	ggithub "github.com/google/go-github/v32/github"
 )
 
 // Repository is github repository. (owner/name)
@@ -37,10 +36,10 @@ func (r Repository) valid() error {
 }
 
 // ListOptions specifies the optional parameters to various List methods that support pagination.
-type ListOptions = ggithub.ListOptions
+type ListOptions = github.ListOptions
 
 // RepositoryRelease represents a GitHub release in a repository.
-type RepositoryRelease = ggithub.RepositoryRelease
+type RepositoryRelease = github.RepositoryRelease
 
 // ReleaseAsset represents a GitHub release asset in a repository.
-type ReleaseAsset = ggithub.ReleaseAsset
+type ReleaseAsset = github.ReleaseAsset

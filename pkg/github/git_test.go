@@ -1,15 +1,18 @@
-# git
+package git
 
-## example
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+)
 
-set github token
-
-```
+/*
+to run
 export GITHUB_TOKEN=YOUR-token
 (cd pkg/github && go test -run TestInfo)
-```
+*/
 
-```go
 func githubToken() string {
 	return os.Getenv("GITHUB_TOKEN")
 }
@@ -30,8 +33,3 @@ func TestInfo(t *testing.T) {
 	fmt.Println("GetRelease", resp.GetName())
 
 }
-```
-
-## command docs
-
-[CLI](docs/cli.md)
