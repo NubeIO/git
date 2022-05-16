@@ -17,9 +17,9 @@ var infoCmd = &cobra.Command{
 
 func runInfo(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	client := github.NewClient(githubToken(), verbose)
+	client := git.NewClient(githubToken(), verbose)
 
-	resp, err := client.GetRelease(ctx, github.Repository(repo), tag)
+	resp, err := client.GetRelease(ctx, git.Repository(repo), tag)
 	if err != nil {
 		return err
 	}

@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/NubeIO/git/pkg/github"
-	"github.com/cheggaaa/pb/v3"
+	git "github.com/NubeIO/git/pkg/github"
 	"github.com/fatih/color"
-	"github.com/reactivex/rxgo/v2"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"os"
 	"runtime"
@@ -21,12 +20,12 @@ var rootCmd = &cobra.Command{
 	Long:          fmt.Sprintf(`Download a github repository release asset`),
 	SilenceErrors: true,
 	SilenceUsage:  true,
-	RunE:          runRoot,
+	Run:           runRoot,
 }
 
-func runRoot(cmd *cobra.Command, args []string) error {
+func runRoot(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	client := github.NewClient(githubToken(), verbose)
+	client := git.NewClient(githubToken(), verbose)
 
 	opt, err := makeAssetOptions()
 	if err != nil {
@@ -40,12 +39,14 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		color.Cyan("release tag:\t%s", tag)
 	}
 
-	asset, observable, err := client.DownloadReleaseAsset(ctx, github.Repository(repo), opt)
-	if err != nil {
-		return err
-	}
+	ass, err := client.DownloadReleaseAsset(ctx, git.Repository(repo), opt)
 
-	return showDownloadProgress(ctx, asset, observable)
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+	log.Infoln("download completed", ass.GetName())
+
 }
 
 var (
@@ -58,32 +59,31 @@ var (
 var (
 	asset     string
 	tag       = "latest"
-	osname    = runtime.GOOS
+	osName    = runtime.GOOS
 	osAlias   = "darwin:macos,osx;windows:win"
 	arch      = runtime.GOARCH
 	archAlias = "amd64:x86_64"
 	dest, _   = os.Getwd()
 	target    string
-	pick      string
 )
 
 func init() {
-	pflagSet := rootCmd.PersistentFlags()
-	pflagSet.BoolVarP(&verbose, "verbose", "v", verbose, "verbose output")
-	pflagSet.StringVar(&tokenEnv, "token-env", "GITHUB_TOKEN", "github oauth2 token environment name")
-	pflagSet.StringVar(&token, "token", token, "github oauth2 token value (optional)")
-	pflagSet.StringVar(&repo, "repo", repo, "github repository (owner/name)")
+	pFlagSet := rootCmd.PersistentFlags()
+	pFlagSet.BoolVarP(&verbose, "verbose", "v", verbose, "verbose output")
+	pFlagSet.StringVar(&tokenEnv, "token-env", "GITHUB_TOKEN", "github oauth2 token environment name")
+	pFlagSet.StringVar(&token, "token", token, "github oauth2 token value (optional)")
+	pFlagSet.StringVarP(&repo, "repo", "", "NubeIO/rubix-bios", "github repository (owner/name)")
 
 	flagSet := rootCmd.Flags()
 	flagSet.StringVar(&asset, "asset", asset, "asset name keyword")
 	flagSet.StringVar(&tag, "tag", tag, "release tag")
-	flagSet.StringVar(&osname, "os", osname, "os keyword")
+	flagSet.StringVar(&osName, "os", osName, "os keyword")
 	flagSet.StringVar(&osAlias, "os-alias", osAlias, "os keyword alias")
 	flagSet.StringVar(&arch, "arch", arch, "arch keyword")
 	flagSet.StringVar(&archAlias, "arch-alias", archAlias, "arch keyword alias")
 	flagSet.StringVar(&dest, "dest", dest, "destination path")
 	flagSet.StringVar(&target, "target", target, "rename destination file (optional)")
-	flagSet.StringVar(&pick, "pick", pick, "extract archive and pick a file name pattern (optional)")
+
 }
 
 func githubToken() string {
@@ -93,7 +93,7 @@ func githubToken() string {
 	return os.Getenv(tokenEnv)
 }
 
-func makeAssetOptions() (*github.AssetOptions, error) {
+func makeAssetOptions() (*git.AssetOptions, error) {
 	if asset == "" {
 		return nil, errors.New("require asset name: see flags --asset")
 	}
@@ -108,16 +108,15 @@ func makeAssetOptions() (*github.AssetOptions, error) {
 		return nil, errors.New("parse alias error: see flags --arch-alias")
 	}
 
-	return &github.AssetOptions{
-		Name:        asset,
-		Tag:         tag,
-		OS:          osname,
-		OSAlias:     osAliasMap[osname],
-		Arch:        arch,
-		ArchAlias:   archAliasMap[arch],
-		DestPath:    dest,
-		Target:      target,
-		PickPattern: pick,
+	return &git.AssetOptions{
+		Name:      asset,
+		Tag:       tag,
+		OS:        osName,
+		OSAlias:   osAliasMap[osName],
+		Arch:      arch,
+		ArchAlias: archAliasMap[arch],
+		DestPath:  dest,
+		Target:    target,
 	}, nil
 }
 
@@ -133,32 +132,4 @@ func parseAlias(flagAlias string) (map[string][]string, error) {
 		ret[k] = v
 	}
 	return ret, nil
-}
-
-func showDownloadProgress(ctx context.Context,
-	asset *github.ReleaseAsset,
-	observable rxgo.Observable,
-) error {
-	totalSize := int64(asset.GetSize())
-	pbbar := pb.Full.New(int(totalSize))
-	pbbar.Set(pb.Bytes, true)
-	pbbar.Set(pb.Terminal, true)
-
-	if verbose {
-		color.Cyan("release asset:\t%s (%s)", asset.GetName(), pbbar.Format(totalSize))
-	}
-
-	pbbar.Start()
-	for item := range observable.Observe(rxgo.WithContext(ctx)) {
-		if item.Error() {
-			return item.E
-		}
-
-		progress := item.V.(*github.DownloadProgress)
-		pbbar.SetCurrent(progress.Received)
-	}
-	pbbar.SetCurrent(totalSize)
-	pbbar.Finish()
-
-	return nil
 }

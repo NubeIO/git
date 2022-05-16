@@ -1,28 +1,33 @@
-package github
+package git
 
 import (
 	"context"
 	"fmt"
+	"github.com/NubeIO/git/pkg/archive"
+	"github.com/fatih/color"
+	"github.com/google/go-github/v32/github"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/fatih/color"
-	ggithub "github.com/google/go-github/v32/github"
-	"github.com/mattn/go-zglob"
-	"github.com/reactivex/rxgo/v2"
-	"golang.org/x/oauth2"
-
-	"github.com/NubeIO/git/pkg/archive"
 )
+
+const NubeIO = "NubeIO"
+const NubeFlow = "NubeIO/flow-framework"
+const NubeBios = "NubeIO/rubix-bios"
+const NubeRubixService = "NubeIO/rubix-service"
+const NubeWires = "NubeIO/rubix-wires"
+const NubeWiresBuild = "NubeIO/wires-builds"
+const NubeRubixIO = "NubeIO/nubeio-rubix-app-pi-gpio-go"
+const TagLatest = "latest"
 
 // Client is a GitHub oauth2 client.
 type Client struct {
-	client  *ggithub.Client
+	client  *github.Client
 	verbose bool
 }
 
@@ -33,7 +38,7 @@ func NewClient(accessToken string, verbose bool) *Client {
 		&oauth2.Token{AccessToken: accessToken},
 	)
 	return &Client{
-		client:  ggithub.NewClient(oauth2.NewClient(ctx, tokenSource)),
+		client:  github.NewClient(oauth2.NewClient(ctx, tokenSource)),
 		verbose: verbose,
 	}
 }
@@ -67,24 +72,24 @@ func (c *Client) GetRelease(ctx context.Context, repo Repository, tag string) (*
 // first returns release asset info.
 // second returns download progress info or error info use a stream.
 // third returns initialize error info.
-func (c *Client) DownloadReleaseAsset(ctx context.Context, repo Repository, opt *AssetOptions) (*ReleaseAsset, rxgo.Observable, error) {
+func (c *Client) DownloadReleaseAsset(ctx context.Context, repo Repository, opt *AssetOptions) (*ReleaseAsset, error) {
 	if err := repo.valid(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	release, err := c.GetRelease(ctx, repo, opt.Tag)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	asset := c.findReleaseAsset(release, opt)
 	if asset == nil {
 		err := fmt.Errorf("not found asset: [name: %s, os: %s, arch: %s]", opt.Name, opt.OS, opt.Arch)
-		return nil, nil, err
+		return nil, err
 	}
-
-	observable, err := c.downloadAsset(asset, opt)
-	return asset, observable, err
+	log.Infof("found asset: [name: %s, os: %s, arch: %s]", opt.Name, opt.OS, opt.Arch)
+	err = c.downloadAsset(asset, opt)
+	return asset, err
 }
 
 func (c *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptions) *ReleaseAsset {
@@ -99,7 +104,6 @@ func (c *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptions)
 				}
 			}
 		}
-
 		matchedArch := strings.Contains(name, strings.ToLower(opt.Arch))
 		if !matchedArch {
 			for _, v := range opt.ArchAlias {
@@ -108,15 +112,21 @@ func (c *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptions)
 				}
 			}
 		}
-
-		if matchedName && matchedArch {
-			return asset
+		log.Infof("matched: [name: %t, os: %t, arch: %t]", matchedName, matchedOS, matchedArch)
+		if opt.MatchOS {
+			if matchedName && matchedArch && matchedOS {
+				return asset
+			}
+		} else {
+			if matchedName && matchedArch {
+				return asset
+			}
 		}
 	}
 	return nil
 }
 
-func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) (rxgo.Observable, error) {
+func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) error {
 	url := asset.GetBrowserDownloadURL()
 	if c.verbose {
 		color.Cyan("release dl url:\t%s", url)
@@ -124,109 +134,50 @@ func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) (rxgo.Obs
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	defer resp.Body.Close()
+
+	filename := path.Base(url)
+	destination := filepath.Join(opt.DestPath, filename)
+	tempExt := ".rubix-downloads"
+
+	if err := os.MkdirAll(filepath.Dir(destination), os.ModePerm); err != nil {
+		return err
+	}
+	file, err := os.Create(destination + tempExt)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if _, err = io.Copy(file, resp.Body); err != nil {
+		return err
 	}
 
-	return rxgo.Defer([]rxgo.Producer{func(ctx context.Context, next chan<- rxgo.Item) {
-		defer resp.Body.Close()
-
-		filename := path.Base(url)
-		destination := filepath.Join(opt.DestPath, filename)
-		tempExt := ".rubix-downloads"
-
-		if err := os.MkdirAll(filepath.Dir(destination), os.ModePerm); err != nil {
-			next <- rxgo.Error(err)
-			return
-		}
-		file, err := os.Create(destination + tempExt)
-		if err != nil {
-			next <- rxgo.Error(err)
-			return
-		}
-		defer file.Close()
-
-		counter := NewWriteCounter(next, int64(asset.GetSize()))
-		if _, err = io.Copy(file, io.TeeReader(resp.Body, counter)); err != nil {
-			next <- rxgo.Error(err)
-			return
-		}
-
-		if err := os.Rename(destination+tempExt, destination); err != nil {
-			next <- rxgo.Error(err)
-		}
-		defer func() {
-			_ = os.Remove(destination + tempExt)
-			_ = os.Remove(destination)
-		}()
-
-		if !archive.Support(filename) {
-			if opt.Target != "" {
-				newDestination := filepath.Join(opt.DestPath, opt.Target)
-				if err := os.Rename(destination, newDestination); err != nil {
-					next <- rxgo.Error(err)
-				}
-			}
-			return
-		}
-
-		if opt.PickPattern != "" {
-			c.extractFile(next, destination, opt)
-			return
-		}
-
-		newDestination := filepath.Join(opt.DestPath, opt.Target)
-		if err := archive.UnArchive(destination, newDestination); err != nil {
-			next <- rxgo.Error(err)
-			return
-		}
-	}}), nil
-}
-
-func (c *Client) extractFile(ch chan<- rxgo.Item, source string, opt *AssetOptions) {
-	tempDir, err := ioutil.TempDir(os.TempDir(), "github-dl")
-	if err != nil {
-		ch <- rxgo.Error(err)
-		return
+	if err := os.Rename(destination+tempExt, destination); err != nil {
+		return err
 	}
 	defer func() {
-		_ = os.RemoveAll(tempDir)
+		_ = os.Remove(destination + tempExt)
+		_ = os.Remove(destination)
 	}()
 
-	if err := archive.UnArchive(source, tempDir); err != nil {
-		ch <- rxgo.Error(err)
-		return
-	}
-
-	matches, err := zglob.Glob(filepath.Join(tempDir, "**", opt.PickPattern))
-	if err != nil {
-		ch <- rxgo.Error(err)
-		return
-	}
-
-	if c.verbose {
-		color.Cyan("pick matches:\t%v", strings.Join(matches, "\n\t\t"))
-	}
-
-	for i, path := range matches {
+	if !archive.Support(filename) {
 		if opt.Target != "" {
-			suffix := ""
-			if i != 0 {
-				suffix = fmt.Sprintf(".%d", i)
+			newDestination := filepath.Join(opt.DestPath, opt.Target)
+			if err := os.Rename(destination, newDestination); err != nil {
+				return err
 			}
-
-			destination := filepath.Join(opt.DestPath, opt.Target+suffix)
-			if err := os.Rename(path, destination); err != nil {
-				ch <- rxgo.Error(err)
-				return
-			}
-			continue
 		}
-
-		filename := filepath.Base(path)
-		destination := filepath.Join(opt.DestPath, filename)
-		if err := os.Rename(path, destination); err != nil {
-			ch <- rxgo.Error(err)
-			return
-		}
+		return nil
 	}
+
+	newDestination := filepath.Join(opt.DestPath, opt.Target)
+	if err := archive.UnArchive(destination, newDestination); err != nil {
+		return err
+	}
+
+	return nil
+
 }

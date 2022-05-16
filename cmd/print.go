@@ -11,14 +11,8 @@ type colorPrint func(format string, a ...interface{})
 
 // Color Print type
 var (
-	Black   = color.Black
-	Red     = color.Red
-	Green   = color.Green
-	Yellow  = color.Yellow
-	Blue    = color.Blue
-	Magenta = color.Magenta
-	Cyan    = color.Cyan
-	White   = color.White
+	Cyan  = color.Cyan
+	White = color.White
 )
 
 func printPrettyJSON(print colorPrint, value interface{}) error {

@@ -1,23 +1,24 @@
 ## cmd cli
 
-these docs are for using the linux or windows command line
-
-- cd into the cmd dir
-- once in the main dir there is access to different protocols, or you can for example add/remove a host
-
 ```
 cd cmd
 ```
 
-## main app
+add github token
 
-### hosts
+```
+export GITHUB_TOKEN=your-token
+```
 
-add a new a host
+## examples
+
+### download
+
+download a build
 
 ````
-go run main.go hosts --new=true --name=test --ip=192.178.12.1
+go run main.go --repo=NubeIO/rubix-service --dest=bin  --asset=rubix-service --arch=amd64 --tag=v0.0.1
 ````
 
-update a host ip (will up by the host name)
+
 
