@@ -32,7 +32,6 @@ func runRoot(cmd *cobra.Command, args []string) {
 		fmt.Println(cmd.UsageString())
 		os.Exit(1)
 	}
-
 	ass, err := client.DownloadReleaseAsset(ctx, git.Repository(repo), opt)
 	if err != nil {
 		log.Errorln(err)
@@ -49,14 +48,17 @@ var (
 )
 
 var (
-	asset     string
-	tag       = "latest"
-	osName    = runtime.GOOS
-	osAlias   = "darwin:macos,osx;windows:win"
-	arch      = runtime.GOARCH
-	archAlias = "amd64:x86_64"
-	dest, _   = os.Getwd()
-	target    string
+	asset           string
+	tag             = "latest"
+	osName          = runtime.GOOS
+	osAlias         = "darwin:macos,osx;windows:win"
+	arch            = runtime.GOARCH
+	archAlias       = "amd64:x86_64"
+	dest, _         = os.Getwd()
+	target          string
+	manualDeleteZip bool //delete the zip after the installation
+	manualPath      string
+	manualAsset     string
 )
 
 func init() {
@@ -64,6 +66,8 @@ func init() {
 	pFlagSet.StringVar(&tokenEnv, "token-env", "GITHUB_TOKEN", "github oauth2 token environment name")
 	pFlagSet.StringVar(&token, "token", token, "github oauth2 token value (optional)")
 	pFlagSet.StringVarP(&repo, "repo", "", "NubeIO/rubix-bios", "github repository (owner/name)")
+	pFlagSet.StringVar(&dest, "dest", dest, "destination path")
+	pFlagSet.StringVar(&target, "target", target, "rename destination file (optional)")
 
 	flagSet := rootCmd.Flags()
 	flagSet.StringVar(&asset, "asset", asset, "asset name keyword")
@@ -72,8 +76,6 @@ func init() {
 	flagSet.StringVar(&osAlias, "os-alias", osAlias, "os keyword alias")
 	flagSet.StringVar(&arch, "arch", arch, "arch keyword")
 	flagSet.StringVar(&archAlias, "arch-alias", archAlias, "arch keyword alias")
-	flagSet.StringVar(&dest, "dest", dest, "destination path")
-	flagSet.StringVar(&target, "target", target, "rename destination file (optional)")
 
 }
 

@@ -28,7 +28,7 @@ func TestInfo(t *testing.T) {
 	fmt.Println("GITHUB_TOKEN", githubToken(), "REPO", Repository(githubRepo()), "TAG", githubTag())
 
 	ctx := context.Background()
-	client := NewClient(githubToken(), true)
+	client := NewClient(githubToken())
 
 	resp, err := client.GetRelease(ctx, Repository(githubRepo()), githubTag())
 	if err != nil {

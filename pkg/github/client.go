@@ -41,27 +41,27 @@ func NewClient(accessToken string) *Client {
 }
 
 // ListReleases get release list.
-func (c *Client) ListReleases(ctx context.Context, repo Repository, opt *ListOptions) ([]*RepositoryRelease, error) {
+func (inst *Client) ListReleases(ctx context.Context, repo Repository, opt *ListOptions) ([]*RepositoryRelease, error) {
 	if err := repo.valid(); err != nil {
 		return nil, err
 	}
 
-	releases, _, err := c.client.Repositories.ListReleases(ctx, repo.Owner(), repo.Name(), opt)
+	releases, _, err := inst.client.Repositories.ListReleases(ctx, repo.Owner(), repo.Name(), opt)
 	return releases, err
 }
 
 // GetRelease gets release info.
-func (c *Client) GetRelease(ctx context.Context, repo Repository, tag string) (*RepositoryRelease, error) {
+func (inst *Client) GetRelease(ctx context.Context, repo Repository, tag string) (*RepositoryRelease, error) {
 	if err := repo.valid(); err != nil {
 		return nil, err
 	}
 
 	if tag == "latest" {
-		release, _, err := c.client.Repositories.GetLatestRelease(ctx, repo.Owner(), repo.Name())
+		release, _, err := inst.client.Repositories.GetLatestRelease(ctx, repo.Owner(), repo.Name())
 		return release, err
 	}
 
-	release, _, err := c.client.Repositories.GetReleaseByTag(ctx, repo.Owner(), repo.Name(), tag)
+	release, _, err := inst.client.Repositories.GetReleaseByTag(ctx, repo.Owner(), repo.Name(), tag)
 	return release, err
 }
 
@@ -69,27 +69,27 @@ func (c *Client) GetRelease(ctx context.Context, repo Repository, tag string) (*
 // first returns release asset info.
 // second returns download progress info or error info use a stream.
 // third returns initialize error info.
-func (c *Client) DownloadReleaseAsset(ctx context.Context, repo Repository, opt *AssetOptions) (*ReleaseAsset, error) {
+func (inst *Client) DownloadReleaseAsset(ctx context.Context, repo Repository, opt *AssetOptions) (*ReleaseAsset, error) {
 	if err := repo.valid(); err != nil {
 		return nil, err
 	}
 
-	release, err := c.GetRelease(ctx, repo, opt.Tag)
+	release, err := inst.GetRelease(ctx, repo, opt.Tag)
 	if err != nil {
 		return nil, err
 	}
 
-	asset := c.findReleaseAsset(release, opt)
+	asset := inst.findReleaseAsset(release, opt)
 	if asset == nil {
 		err := fmt.Errorf("not found asset: [name: %s, os: %s, arch: %s]", opt.Name, opt.OS, opt.Arch)
 		return nil, err
 	}
 	log.Infof("found asset: [name: %s, os: %s, arch: %s]", opt.Name, opt.OS, opt.Arch)
-	err = c.downloadAsset(asset, opt)
+	err = inst.DownloadAsset(asset, opt)
 	return asset, err
 }
 
-func (c *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptions) *ReleaseAsset {
+func (inst *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptions) *ReleaseAsset {
 	for _, asset := range release.Assets {
 		name := strings.ToLower(asset.GetName())
 		matchedName := strings.Contains(name, strings.ToLower(opt.Name))
@@ -123,16 +123,39 @@ func (c *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptions)
 	return nil
 }
 
-func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) error {
-	url := asset.GetBrowserDownloadURL()
-	log.Infof("release dl url:%s", url)
-	resp, err := http.Get(url)
-	if err != nil {
+func (inst *Client) DownloadAsset(asset *ReleaseAsset, opt *AssetOptions) error {
+
+	manualPath := opt.ManualInstall.Path
+	manualAsset := opt.ManualInstall.Asset
+	fmt.Println(opt.ManualInstall.DeleteAsset, "DELETE", manualAsset)
+	if manualPath != "" {
+		full := fmt.Sprintf("%s/%s", manualPath, manualAsset)
+		log.Infof("do a manual install destination path: %s", full)
+		zip, err := os.Open(full)
+		if err != nil {
+			return err
+		}
+		defer zip.Close()
+		err = inst.unPacAsset(manualAsset, zip, opt)
+		return err
+
+	} else {
+		url := asset.GetBrowserDownloadURL()
+		log.Infof("release dl url:%s", url)
+		resp, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		filename := path.Base(url)
+		err = inst.unPacAsset(filename, resp.Body, opt)
 		return err
 	}
-	defer resp.Body.Close()
 
-	filename := path.Base(url)
+}
+
+func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOptions) error {
+
 	destination := filepath.Join(opt.DestPath, filename)
 	tempExt := ".rubix-downloads"
 
@@ -146,7 +169,7 @@ func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) error {
 	}
 	defer file.Close()
 
-	if _, err = io.Copy(file, resp.Body); err != nil {
+	if _, err = io.Copy(file, body); err != nil {
 		return err
 	}
 
@@ -155,10 +178,19 @@ func (c *Client) downloadAsset(asset *ReleaseAsset, opt *AssetOptions) error {
 	}
 	log.Infof("rename tmp old: %s new:%s", destination+tempExt, destination)
 	defer func() {
-		log.Infof("delete:%s", destination+tempExt)
-		_ = os.Remove(destination + tempExt)
-		log.Infof("delete:%s", destination)
-		_ = os.Remove(destination)
+		if opt.ManualInstall.DeleteAsset == false { //dont delete when doing manual install
+			log.Infof("delete:%s", destination+tempExt)
+			_ = os.Remove(destination + tempExt)
+			log.Infof("delete:%s", destination)
+			_ = os.Remove(destination)
+			if opt.ManualInstall.Path != "" {
+				manualPath := opt.ManualInstall.Path
+				manualAsset := opt.ManualInstall.Asset
+				deleteManual := fmt.Sprintf("%s/%s", manualPath, manualAsset)
+				log.Infof("delete-manual:%s", deleteManual)
+				_ = os.Remove(deleteManual)
+			}
+		}
 	}()
 
 	if !archive.Support(filename) {
