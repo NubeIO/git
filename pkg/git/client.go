@@ -189,7 +189,7 @@ func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOp
 	}
 	newDestination := filepath.Join(opt.DestPath, opt.Target)
 	if inst.Opts.VersionDirName {
-		newDestination = fmt.Sprintf("%s/%s", newDestination, getAssetVersion(filename))
+		newDestination = fmt.Sprintf("%s/v%s", newDestination, getAssetVersion(filename))
 	}
 
 	log.Infof("new destination :%s", newDestination)

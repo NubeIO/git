@@ -58,13 +58,13 @@ go run main.go manual --manual-asset=rubix-service-1.19.0-eb71da61.amd64.zip --m
 will make the dir look like
 
 ```
-├── bin
+├── data
 │    └── rubix-bios-app
-│       └── 1.19.1
-│          └── rubix-service
+│       └── v1.5.2
+│          └── rubix-bios
 
 ```
 
 ```
-go run main.go --owner=NubeIO  --repo=rubix-service --dest=../bin --target=rubix-bios-app --asset=rubix-service --arch=amd64 --tag=latest --version-in-target=true
+go run main.go --owner=NubeIO --repo=rubix-bios --dest=../bin --target=rubix-bios-app --asset=rubix-bios --arch=amd64 --tag=v1.5.2 --version-in-target=true
 ```
