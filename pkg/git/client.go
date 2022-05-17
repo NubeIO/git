@@ -53,25 +53,31 @@ func (inst *Client) GetRelease() (*RepositoryRelease, error) {
 	return release, err
 }
 
+type DownloadResponse struct {
+	ReleaseAsset     *ReleaseAsset
+	Destination      string //the final destination of the build / ..bin/rubix-bios/v0.1.1
+	DestinationFull  string //same as above but with a `pwd` /home/user/bin/rubix-bios/v0.1.1
+	ExtractedVersion string //version number of the asset eg:v0.1.1
+}
+
 // DownloadReleaseAsset downloads a release asset file.
 // first returns release asset info.
-// second returns download progress info or error info use a stream.
 // third returns initialize error info.
-func (inst *Client) DownloadReleaseAsset() (*ReleaseAsset, error) {
+func (inst *Client) DownloadReleaseAsset() (*DownloadResponse, error) {
 	opt := inst.Opts
 	release, err := inst.GetRelease()
 	if err != nil {
 		return nil, err
 	}
-
 	asset := inst.findReleaseAsset(release)
 	if asset == nil {
 		err := fmt.Errorf("not found asset: [name: %s, os: %s, arch: %s]", opt.Repo, opt.OS, opt.Arch)
 		return nil, err
 	}
 	log.Infof("found asset: [name: %s, os: %s, arch: %s]", opt.Repo, opt.OS, opt.Arch)
-	err = inst.DownloadAsset(asset)
-	return asset, err
+	res, err := inst.InstallAsset(asset)
+	res.ReleaseAsset = asset
+	return res, err
 }
 
 func (inst *Client) findReleaseAsset(release *RepositoryRelease) *ReleaseAsset {
@@ -109,7 +115,7 @@ func (inst *Client) findReleaseAsset(release *RepositoryRelease) *ReleaseAsset {
 	return nil
 }
 
-func (inst *Client) DownloadAsset(asset *ReleaseAsset) error {
+func (inst *Client) InstallAsset(asset *ReleaseAsset) (*DownloadResponse, error) {
 	opt := inst.Opts
 	manualPath := opt.ManualInstall.Path
 	manualAsset := opt.ManualInstall.Asset
@@ -118,48 +124,48 @@ func (inst *Client) DownloadAsset(asset *ReleaseAsset) error {
 		log.Infof("do a manual install destination path: %s", full)
 		zip, err := os.Open(full)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer zip.Close()
-		err = inst.unPacAsset(manualAsset, zip, opt)
-		return err
+		res, err := inst.unPacAsset(manualAsset, zip, opt)
+		return res, err
 
 	} else {
 		url := asset.GetBrowserDownloadURL()
 		log.Infof("release dl url:%s", url)
 		resp, err := http.Get(url)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer resp.Body.Close()
 		filename := path.Base(url)
-		err = inst.unPacAsset(filename, resp.Body, opt)
-		return err
+		res, err := inst.unPacAsset(filename, resp.Body, opt)
+		return res, err
 	}
 
 }
 
-func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOptions) error {
+func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOptions) (*DownloadResponse, error) {
 
 	destination := filepath.Join(opt.DestPath, filename)
 	tempExt := ".rubix-downloads"
 
 	if err := os.MkdirAll(filepath.Dir(destination), os.ModePerm); err != nil {
-		return err
+		return nil, err
 	}
 	file, err := os.Create(destination + tempExt)
 	log.Infof("make tmp dir:%s", destination+tempExt)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer file.Close()
 
 	if _, err = io.Copy(file, body); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := os.Rename(destination+tempExt, destination); err != nil {
-		return err
+		return nil, err
 	}
 	log.Infof("rename tmp old: %s new:%s", destination+tempExt, destination)
 	defer func() {
@@ -182,20 +188,27 @@ func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOp
 		if opt.Target != "" {
 			newDestination := filepath.Join(opt.DestPath, opt.Target)
 			if err := os.Rename(destination, newDestination); err != nil {
-				return err
+				return nil, err
 			}
 		}
-		return nil
+		return nil, err
 	}
 	newDestination := filepath.Join(opt.DestPath, opt.Target)
 	if inst.Opts.VersionDirName {
 		newDestination = fmt.Sprintf("%s/v%s", newDestination, getAssetVersion(filename))
 	}
 
+	pwd, _ := os.Getwd()
+	res := &DownloadResponse{
+		Destination:      newDestination,
+		DestinationFull:  cleanPath(fmt.Sprintf("%s/%s", pwd, newDestination)),
+		ExtractedVersion: getAssetVersion(filename),
+	}
+
 	log.Infof("new destination :%s", newDestination)
 	if err := archive.UnArchive(destination, newDestination); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return res, nil
 
 }

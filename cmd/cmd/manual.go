@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/NubeIO/git/pkg/git"
+	pprint "github.com/NubeIO/git/pkg/helpers/print"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -27,11 +28,12 @@ func runUnzip(cmd *cobra.Command, args []string) {
 		},
 	}
 	client.Opts = opt
-	err = client.DownloadAsset(&git.ReleaseAsset{})
+	res, err := client.InstallAsset(&git.ReleaseAsset{})
 	if err != nil {
 		log.Errorln(err)
 		return
 	}
+	pprint.Print(res)
 }
 
 func init() {

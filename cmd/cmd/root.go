@@ -44,8 +44,10 @@ func runRoot(cmd *cobra.Command, args []string) {
 		log.Errorln(err)
 		return
 	}
-	log.Infoln("download completed", ass.GetName())
-
+	log.Infoln("download completed GetName", ass.ReleaseAsset.GetName())
+	log.Infoln("download completed Destination:", ass.Destination)
+	log.Infoln("download completed DestinationFull:", ass.DestinationFull)
+	log.Infoln("download completed ExtractedVersion:", ass.ExtractedVersion)
 }
 
 var (
