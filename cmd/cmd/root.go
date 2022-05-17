@@ -67,6 +67,7 @@ var (
 	manualDeleteZip bool //delete the zip after the installation
 	manualPath      string
 	manualAsset     string
+	versionDirName  bool
 )
 
 func init() {
@@ -77,6 +78,7 @@ func init() {
 	pFlagSet.StringVarP(&repo, "repo", "", "NubeIO/rubix-bios", "github repository (owner/NAME)")
 	pFlagSet.StringVar(&dest, "dest", dest, "destination path")
 	pFlagSet.StringVar(&target, "target", target, "rename destination file (optional)")
+	pFlagSet.BoolVarP(&versionDirName, "version-in-target", "", false, "set this to true and the asset version number will be used in the naming of the target dir (eg: /bin/bios/rubix-0.5)")
 
 	flagSet := rootCmd.Flags()
 	flagSet.StringVar(&asset, "asset", asset, "asset name keyword")
@@ -108,15 +110,16 @@ func makeAssetOptions() (*git.AssetOptions, error) {
 	}
 
 	return &git.AssetOptions{
-		Owner:     owner,
-		Repo:      repo,
-		Tag:       tag,
-		OS:        osName,
-		OSAlias:   osAliasMap[osName],
-		Arch:      arch,
-		ArchAlias: archAliasMap[arch],
-		DestPath:  dest,
-		Target:    target,
+		Owner:          owner,
+		Repo:           repo,
+		Tag:            tag,
+		OS:             osName,
+		OSAlias:        osAliasMap[osName],
+		Arch:           arch,
+		ArchAlias:      archAliasMap[arch],
+		DestPath:       dest,
+		Target:         target,
+		VersionDirName: versionDirName,
 	}, nil
 }
 

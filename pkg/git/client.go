@@ -187,9 +187,12 @@ func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOp
 		}
 		return nil
 	}
-
 	newDestination := filepath.Join(opt.DestPath, opt.Target)
-	log.Infof("new destination of zip/tar:%s", newDestination)
+	if inst.Opts.VersionDirName {
+		newDestination = fmt.Sprintf("%s/%s", newDestination, getAssetVersion(filename))
+	}
+
+	log.Infof("new destination :%s", newDestination)
 	if err := archive.UnArchive(destination, newDestination); err != nil {
 		return err
 	}
