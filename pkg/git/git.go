@@ -1,0 +1,22 @@
+package git
+
+import "errors"
+
+func MakeAssetOptions(asset AssetOptions, manual ManualInstall) (*AssetOptions, error) {
+	if asset.Repo == "" {
+		return nil, errors.New("require asset")
+	}
+
+	return &AssetOptions{
+		Owner:         asset.Owner,
+		Repo:          asset.Repo,
+		Tag:           asset.Tag,
+		OS:            asset.OS,
+		OSAlias:       asset.OSAlias,
+		Arch:          asset.Arch,
+		ArchAlias:     asset.ArchAlias,
+		DestPath:      asset.DestPath,
+		Target:        asset.Target,
+		ManualInstall: manual,
+	}, nil
+}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	git "github.com/NubeIO/git/pkg/github"
+	"github.com/NubeIO/git/pkg/git"
 	"github.com/fatih/color"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -23,16 +23,23 @@ var rootCmd = &cobra.Command{
 	Run:           runRoot,
 }
 
-func runRoot(cmd *cobra.Command, args []string) {
-	ctx := context.Background()
-	client := git.NewClient(githubToken())
+func initClient() (*git.Client, error) {
 	opt, err := makeAssetOptions()
+	ctx := context.Background()
+	client := git.NewClient(githubToken(), opt, ctx)
+	return client, err
+
+}
+
+func runRoot(cmd *cobra.Command, args []string) {
+	client, err := initClient()
+
 	if err != nil {
 		color.Magenta(err.Error())
 		fmt.Println(cmd.UsageString())
 		os.Exit(1)
 	}
-	ass, err := client.DownloadReleaseAsset(ctx, git.Repository(repo), opt)
+	ass, err := client.DownloadReleaseAsset()
 	if err != nil {
 		log.Errorln(err)
 		return
@@ -49,6 +56,7 @@ var (
 
 var (
 	asset           string
+	owner           string
 	tag             = "latest"
 	osName          = runtime.GOOS
 	osAlias         = "darwin:macos,osx;windows:win"
@@ -65,7 +73,8 @@ func init() {
 	pFlagSet := rootCmd.PersistentFlags()
 	pFlagSet.StringVar(&tokenEnv, "token-env", "GITHUB_TOKEN", "github oauth2 token environment name")
 	pFlagSet.StringVar(&token, "token", token, "github oauth2 token value (optional)")
-	pFlagSet.StringVarP(&repo, "repo", "", "NubeIO/rubix-bios", "github repository (owner/name)")
+	pFlagSet.StringVarP(&owner, "owner", "", "NubeIO", "github repository (OWNER/name)")
+	pFlagSet.StringVarP(&repo, "repo", "", "NubeIO/rubix-bios", "github repository (owner/NAME)")
 	pFlagSet.StringVar(&dest, "dest", dest, "destination path")
 	pFlagSet.StringVar(&target, "target", target, "rename destination file (optional)")
 
@@ -87,9 +96,6 @@ func githubToken() string {
 }
 
 func makeAssetOptions() (*git.AssetOptions, error) {
-	if asset == "" {
-		return nil, errors.New("require asset name: see flags --asset")
-	}
 
 	osAliasMap, err := parseAlias(osAlias)
 	if err != nil {
@@ -102,7 +108,8 @@ func makeAssetOptions() (*git.AssetOptions, error) {
 	}
 
 	return &git.AssetOptions{
-		Name:      asset,
+		Owner:     owner,
+		Repo:      repo,
 		Tag:       tag,
 		OS:        osName,
 		OSAlias:   osAliasMap[osName],

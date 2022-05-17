@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"context"
-	"github.com/NubeIO/git/pkg/github"
 	"github.com/NubeIO/git/pkg/helpers/print"
 	"github.com/spf13/cobra"
 )
@@ -16,10 +14,9 @@ var infoCmd = &cobra.Command{
 }
 
 func runInfo(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-	client := git.NewClient(githubToken())
+	client, err := initClient()
 
-	resp, err := client.GetRelease(ctx, git.Repository(repo), tag)
+	resp, err := client.GetRelease()
 	if err != nil {
 		return err
 	}

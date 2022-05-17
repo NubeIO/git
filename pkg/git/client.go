@@ -15,53 +15,41 @@ import (
 	"strings"
 )
 
-const NubeIO = "NubeIO"
-const NubeFlow = "NubeIO/flow-framework"
-const NubeBios = "NubeIO/rubix-bios"
-const NubeRubixService = "NubeIO/rubix-service"
-const NubeWires = "NubeIO/rubix-wires"
-const NubeWiresBuild = "NubeIO/wires-builds"
-const NubeRubixIO = "NubeIO/nubeio-rubix-app-pi-gpio-go"
-const TagLatest = "latest"
-
-// Client is a GitHub oauth2 client.
+// Client is a GitHub oauth2 hub.
 type Client struct {
-	client *github.Client
+	hub  *github.Client //github
+	Opts *AssetOptions
+	CTX  context.Context
 }
 
-// NewClient creates github client.
-func NewClient(accessToken string) *Client {
-	ctx := context.Background()
+// NewClient creates GitHub hub.
+func NewClient(accessToken string, Opts *AssetOptions, ctx context.Context) *Client {
+	c := context.Background()
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: accessToken},
 	)
 	return &Client{
-		client: github.NewClient(oauth2.NewClient(ctx, tokenSource)),
+		hub:  github.NewClient(oauth2.NewClient(c, tokenSource)),
+		Opts: Opts,
+		CTX:  ctx,
 	}
 }
 
 // ListReleases get release list.
-func (inst *Client) ListReleases(ctx context.Context, repo Repository, opt *ListOptions) ([]*RepositoryRelease, error) {
-	if err := repo.valid(); err != nil {
-		return nil, err
-	}
-
-	releases, _, err := inst.client.Repositories.ListReleases(ctx, repo.Owner(), repo.Name(), opt)
+func (inst *Client) ListReleases(opt *ListOptions) ([]*RepositoryRelease, error) {
+	releases, _, err := inst.hub.Repositories.ListReleases(inst.CTX, inst.Opts.Owner, inst.Opts.Repo, opt)
 	return releases, err
 }
 
 // GetRelease gets release info.
-func (inst *Client) GetRelease(ctx context.Context, repo Repository, tag string) (*RepositoryRelease, error) {
-	if err := repo.valid(); err != nil {
-		return nil, err
-	}
+func (inst *Client) GetRelease() (*RepositoryRelease, error) {
 
-	if tag == "latest" {
-		release, _, err := inst.client.Repositories.GetLatestRelease(ctx, repo.Owner(), repo.Name())
+	if inst.Opts.Tag == "latest" {
+		release, _, err := inst.hub.Repositories.GetLatestRelease(inst.CTX, inst.Opts.Owner, inst.Opts.Repo)
 		return release, err
 	}
 
-	release, _, err := inst.client.Repositories.GetReleaseByTag(ctx, repo.Owner(), repo.Name(), tag)
+	release, _, err := inst.hub.Repositories.GetReleaseByTag(inst.CTX, inst.Opts.Owner, inst.Opts.Repo, inst.Opts.Tag)
 	return release, err
 }
 
@@ -69,30 +57,28 @@ func (inst *Client) GetRelease(ctx context.Context, repo Repository, tag string)
 // first returns release asset info.
 // second returns download progress info or error info use a stream.
 // third returns initialize error info.
-func (inst *Client) DownloadReleaseAsset(ctx context.Context, repo Repository, opt *AssetOptions) (*ReleaseAsset, error) {
-	if err := repo.valid(); err != nil {
-		return nil, err
-	}
-
-	release, err := inst.GetRelease(ctx, repo, opt.Tag)
+func (inst *Client) DownloadReleaseAsset() (*ReleaseAsset, error) {
+	opt := inst.Opts
+	release, err := inst.GetRelease()
 	if err != nil {
 		return nil, err
 	}
 
-	asset := inst.findReleaseAsset(release, opt)
+	asset := inst.findReleaseAsset(release)
 	if asset == nil {
-		err := fmt.Errorf("not found asset: [name: %s, os: %s, arch: %s]", opt.Name, opt.OS, opt.Arch)
+		err := fmt.Errorf("not found asset: [name: %s, os: %s, arch: %s]", opt.Repo, opt.OS, opt.Arch)
 		return nil, err
 	}
-	log.Infof("found asset: [name: %s, os: %s, arch: %s]", opt.Name, opt.OS, opt.Arch)
-	err = inst.DownloadAsset(asset, opt)
+	log.Infof("found asset: [name: %s, os: %s, arch: %s]", opt.Repo, opt.OS, opt.Arch)
+	err = inst.DownloadAsset(asset)
 	return asset, err
 }
 
-func (inst *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptions) *ReleaseAsset {
+func (inst *Client) findReleaseAsset(release *RepositoryRelease) *ReleaseAsset {
+	opt := inst.Opts
 	for _, asset := range release.Assets {
 		name := strings.ToLower(asset.GetName())
-		matchedName := strings.Contains(name, strings.ToLower(opt.Name))
+		matchedName := strings.Contains(name, strings.ToLower(opt.Repo))
 		matchedOS := strings.Contains(name, strings.ToLower(opt.OS))
 		if !matchedOS {
 			for _, v := range opt.OSAlias {
@@ -123,11 +109,10 @@ func (inst *Client) findReleaseAsset(release *RepositoryRelease, opt *AssetOptio
 	return nil
 }
 
-func (inst *Client) DownloadAsset(asset *ReleaseAsset, opt *AssetOptions) error {
-
+func (inst *Client) DownloadAsset(asset *ReleaseAsset) error {
+	opt := inst.Opts
 	manualPath := opt.ManualInstall.Path
 	manualAsset := opt.ManualInstall.Asset
-	fmt.Println(opt.ManualInstall.DeleteAsset, "DELETE", manualAsset)
 	if manualPath != "" {
 		full := fmt.Sprintf("%s/%s", manualPath, manualAsset)
 		log.Infof("do a manual install destination path: %s", full)

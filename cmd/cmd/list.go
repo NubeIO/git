@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"context"
-	git "github.com/NubeIO/git/pkg/github"
+	"github.com/NubeIO/git/pkg/git"
 	pprint "github.com/NubeIO/git/pkg/helpers/print"
 
 	"github.com/spf13/cobra"
@@ -17,14 +16,12 @@ var listCmd = &cobra.Command{
 }
 
 func runList(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-	client := git.NewClient(githubToken())
+	client, err := initClient()
 	opt := &git.ListOptions{
 		Page:    page,
 		PerPage: perPage,
 	}
-
-	resp, err := client.ListReleases(ctx, git.Repository(repo), opt)
+	resp, err := client.ListReleases(opt)
 	if err != nil {
 		return err
 	}

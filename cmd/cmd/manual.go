@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	git "github.com/NubeIO/git/pkg/github"
+	"github.com/NubeIO/git/pkg/git"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -16,7 +16,8 @@ var unzipCmd = &cobra.Command{
 
 func runUnzip(cmd *cobra.Command, args []string) {
 
-	client := git.NewClient("")
+	client, err := initClient()
+
 	opt := &git.AssetOptions{
 		DestPath: dest,
 		ManualInstall: git.ManualInstall{
@@ -25,7 +26,8 @@ func runUnzip(cmd *cobra.Command, args []string) {
 			DeleteAsset: manualDeleteZip,
 		},
 	}
-	err := client.DownloadAsset(&git.ReleaseAsset{}, opt)
+	client.Opts = opt
+	err = client.DownloadAsset(&git.ReleaseAsset{})
 	if err != nil {
 		log.Errorln(err)
 		return

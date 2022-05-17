@@ -3,7 +3,8 @@ package git
 // AssetOptions are parameters to download an asset file.
 type AssetOptions struct {
 	Tag           string //latest or v.1.1.1
-	Name          string //NubeIO/my-repo
+	Repo          string //my-repo
+	Owner         string //NubeIO
 	OS            string //linux, windows
 	OSAlias       []string
 	Arch          string //tag arch as in amd64 arm7
