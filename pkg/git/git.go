@@ -2,7 +2,7 @@ package git
 
 import "errors"
 
-func MakeAssetOptions(asset AssetOptions, manual ManualInstall) (*AssetOptions, error) {
+func MakeAssetOptions(asset AssetOptions, manual manualInstall) (*AssetOptions, error) {
 	if asset.Repo == "" {
 		return nil, errors.New("require asset")
 	}
@@ -17,6 +17,6 @@ func MakeAssetOptions(asset AssetOptions, manual ManualInstall) (*AssetOptions, 
 		ArchAlias:     asset.ArchAlias,
 		DestPath:      asset.DestPath,
 		Target:        asset.Target,
-		ManualInstall: manual,
+		manualInstall: manual,
 	}, nil
 }

@@ -87,9 +87,25 @@ func (inst *Client) DownloadReleaseAsset() (*DownloadResponse, error) {
 	return res, err
 }
 
-func (inst *Client) DownloadReleaseOnly() (*DownloadResponse, error) {
-	inst.Opts.ManualInstall.DeleteZip = false
+//DownloadOnly just download and unzip
+func (inst *Client) DownloadOnly() (*DownloadResponse, error) {
+	inst.Opts.DeleteZip = false
+	inst.Opts.downloadOnly = true
 	res, err := inst.DownloadReleaseAsset()
+	return res, err
+}
+
+//InstallFromZip just install a pre downloaded  unzip
+func (inst *Client) InstallFromZip(unzipPath, assetName string, deleteZip bool) (*DownloadResponse, error) {
+	inst.Opts.DeleteZip = deleteZip
+	full := fmt.Sprintf("%s/%s", unzipPath, assetName)
+	log.Infof("do a manual install destination path: %s", full)
+	zip, err := os.Open(full)
+	if err != nil {
+		return nil, err
+	}
+	defer zip.Close()
+	res, err := inst.unPacAsset(full, zip, inst.Opts)
 	return res, err
 }
 
@@ -130,36 +146,21 @@ func (inst *Client) findReleaseAsset(release *RepositoryRelease) *ReleaseAsset {
 
 func (inst *Client) InstallAsset(asset *ReleaseAsset) (*DownloadResponse, error) {
 	opt := inst.Opts
-	manualPath := opt.ManualInstall.Path
-	manualAsset := opt.ManualInstall.Asset
-	if manualPath != "" {
-		full := fmt.Sprintf("%s/%s", manualPath, manualAsset)
-		log.Infof("do a manual install destination path: %s", full)
-		zip, err := os.Open(full)
-		if err != nil {
-			return nil, err
-		}
-		defer zip.Close()
-		res, err := inst.unPacAsset(manualAsset, zip, opt)
-		return res, err
-
-	} else {
-		url := asset.GetBrowserDownloadURL()
-		log.Infof("release dl url:%s", url)
-		resp, err := http.Get(url)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		filename := path.Base(url)
-		res, err := inst.unPacAsset(filename, resp.Body, opt)
-		return res, err
+	url := asset.GetBrowserDownloadURL()
+	log.Infof("release dl url:%s", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
 	}
+	defer resp.Body.Close()
+	filename := path.Base(url)
+	res, err := inst.unPacAsset(filename, resp.Body, opt)
+	return res, err
 
 }
 
 func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOptions) (*DownloadResponse, error) {
-
+	fmt.Println(111, inst.Opts.DeleteZip)
 	destination := filepath.Join(opt.DestPath, filename)
 	tempExt := ".rubix-downloads"
 
@@ -182,14 +183,14 @@ func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOp
 	}
 	log.Infof("rename tmp old: %s new:%s", destination+tempExt, destination)
 	defer func() {
-		if opt.ManualInstall.DeleteZip == true { //dont delete when doing manual install
+		if opt.manualInstall.deleteZip == true { //dont delete when doing manual install
 			log.Infof("delete:%s", destination+tempExt)
 			_ = os.Remove(destination + tempExt)
 			log.Infof("delete:%s", destination)
 			_ = os.Remove(destination)
-			if opt.ManualInstall.Path != "" {
-				manualPath := opt.ManualInstall.Path
-				manualAsset := opt.ManualInstall.Asset
+			if opt.manualInstall.path != "" {
+				manualPath := opt.manualInstall.path
+				manualAsset := opt.manualInstall.asset
 				deleteManual := fmt.Sprintf("%s/%s", manualPath, manualAsset)
 				log.Infof("delete-manual:%s", deleteManual)
 				_ = os.Remove(deleteManual)
@@ -219,9 +220,12 @@ func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOp
 	}
 
 	log.Infof("new destination :%s", newDestination)
-	if err := archive.UnArchive(destination, newDestination); err != nil {
-		return nil, err
+	if !inst.Opts.downloadOnly {
+		if err := archive.UnArchive(destination, newDestination); err != nil {
+			return nil, err
+		}
 	}
+
 	return res, nil
 
 }

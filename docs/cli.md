@@ -2,6 +2,18 @@
 
 add github token
 
+## just download 
+
+```
+go run main.go --download=true --owner=NubeIO  --repo=rubix-service --dest=../bin  --asset=rubix-service --arch=amd64 --tag=latest --token=12
+```
+## just install and existing download
+
+```
+go run main.go --unzip=true  --dest=../bin --target=rubix-bios-app --existing-path=../bin --existing-asset=rubix-service-1.19.2-5bdd773f.amd64.zip
+```
+
+
 ```
 export GITHUB_TOKEN=your-token
 ```

@@ -39,15 +39,28 @@ func runRoot(cmd *cobra.Command, args []string) {
 		fmt.Println(cmd.UsageString())
 		os.Exit(1)
 	}
-	ass, err := client.DownloadReleaseOnly()
-	if err != nil {
-		log.Errorln(err)
-		return
+
+	resp := &git.DownloadResponse{}
+
+	if downloadOnly {
+		resp, err = client.DownloadOnly()
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
 	}
-	log.Infoln("download completed GetName", ass.ReleaseAsset.GetName())
-	log.Infoln("download completed Destination:", ass.Destination)
-	log.Infoln("download completed DestinationFull:", ass.DestinationFull)
-	log.Infoln("download completed ExtractedVersion:", ass.ExtractedVersion)
+	if unzipExisting {
+		resp, err = client.InstallFromZip(existingPath, existingAsset, deleteZip)
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+	}
+
+	log.Infoln("download completed GetName", resp.ReleaseAsset.GetName())
+	log.Infoln("download completed Destination:", resp.Destination)
+	log.Infoln("download completed DestinationFull:", resp.DestinationFull)
+	log.Infoln("download completed ExtractedVersion:", resp.ExtractedVersion)
 }
 
 var (
@@ -57,19 +70,23 @@ var (
 )
 
 var (
-	asset           string
-	owner           string
-	tag             = "latest"
-	osName          = runtime.GOOS
-	osAlias         = "darwin:macos,osx;windows:win"
-	arch            = runtime.GOARCH
-	archAlias       = "amd64:x86_64"
-	dest, _         = os.Getwd()
-	target          string
-	manualDeleteZip bool //delete the zip after the installation
-	manualPath      string
-	manualAsset     string
-	versionDirName  bool
+	asset          string
+	owner          string
+	tag            = "latest"
+	osName         = runtime.GOOS
+	osAlias        = "darwin:macos,osx;windows:win"
+	arch           = runtime.GOARCH
+	archAlias      = "amd64:x86_64"
+	dest, _        = os.Getwd()
+	target         string
+	deleteZip      bool //delete the zip after the installation
+	versionDirName bool
+
+	//options download, unzip install
+	downloadOnly  bool
+	unzipExisting bool
+	existingPath  string
+	existingAsset string
 )
 
 func init() {
@@ -77,7 +94,7 @@ func init() {
 	pFlagSet.StringVar(&tokenEnv, "token-env", "GITHUB_TOKEN", "github oauth2 token environment name")
 	pFlagSet.StringVar(&token, "token", token, "github oauth2 token value (optional)")
 	pFlagSet.StringVarP(&owner, "owner", "", "NubeIO", "github repository (OWNER/name)")
-	pFlagSet.StringVarP(&repo, "repo", "", "NubeIO/rubix-bios", "github repository (owner/NAME)")
+	pFlagSet.StringVarP(&repo, "repo", "", "rubix-bios", "github repository (owner/NAME)")
 	pFlagSet.StringVar(&dest, "dest", dest, "destination path")
 	pFlagSet.StringVar(&target, "target", target, "rename destination file (optional)")
 	pFlagSet.BoolVarP(&versionDirName, "version-in-target", "", false, "set this to true and the asset version number will be used in the naming of the target dir (eg: /bin/bios/rubix-0.5)")
@@ -89,7 +106,11 @@ func init() {
 	flagSet.StringVar(&osAlias, "os-alias", osAlias, "os keyword alias")
 	flagSet.StringVar(&arch, "arch", arch, "arch keyword")
 	flagSet.StringVar(&archAlias, "arch-alias", archAlias, "arch keyword alias")
-
+	flagSet.BoolVarP(&downloadOnly, "download", "", false, "download only")
+	flagSet.BoolVarP(&unzipExisting, "unzip", "", false, "unzip only from existing download")
+	flagSet.BoolVarP(&deleteZip, "delete-zip", "", false, "delete the zip download after install or unzip")
+	flagSet.StringVarP(&existingPath, "existing-path", "", "", "/home/user")
+	flagSet.StringVarP(&existingAsset, "existing-asset", "", "", "rubix-service-amd64.zip")
 }
 
 func githubToken() string {
@@ -121,6 +142,7 @@ func makeAssetOptions() (*git.AssetOptions, error) {
 		ArchAlias:      archAliasMap[arch],
 		DestPath:       dest,
 		Target:         target,
+		DeleteZip:      deleteZip,
 		VersionDirName: versionDirName,
 	}, nil
 }

@@ -13,13 +13,15 @@ type AssetOptions struct {
 	Target         string //pass in a new target dir  --dest=bin --target=new  this will add the archive in bin/new/my-asset
 	MatchOS        bool   //try and match the OS type from the name as in "myapp-linux-amd64", we would try and match the "linux"
 	VersionDirName bool   // set this to true and the asset version number will be used in the naming of the target dir (eg: /bin/bios/rubix-0.5)
-	ManualInstall  ManualInstall
+	DeleteZip      bool
+	downloadOnly   bool
+	manualInstall  manualInstall
 }
 
-type ManualInstall struct {
-	Path  string //  /home/user/rubix-service-1.19.0-eb71da61.amd64.zip
-	Asset string // /rubix-service-1.19.0-eb71da61.amd64.zip
+type manualInstall struct {
+	path  string //  /home/user/rubix-service-1.19.0-eb71da61.amd64.zip
+	asset string // /rubix-service-1.19.0-eb71da61.amd64.zip
 	//DestinationPath    string //this is used when the user does not want to download the build from the GitHub, as in the already have the zip, so they just want to install the build
-	DeleteZip bool //delete the zip after the installation is done
+	deleteZip bool //delete the zip after the installation is done
 
 }
