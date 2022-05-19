@@ -20,6 +20,6 @@ type ManualInstall struct {
 	Path  string //  /home/user/rubix-service-1.19.0-eb71da61.amd64.zip
 	Asset string // /rubix-service-1.19.0-eb71da61.amd64.zip
 	//DestinationPath    string //this is used when the user does not want to download the build from the GitHub, as in the already have the zip, so they just want to install the build
-	DeleteAsset bool //delete the zip after the installation is done
+	DeleteZip bool //delete the zip after the installation is done
 
 }

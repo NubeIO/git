@@ -22,9 +22,9 @@ func runUnzip(cmd *cobra.Command, args []string) {
 	opt := &git.AssetOptions{
 		DestPath: dest,
 		ManualInstall: git.ManualInstall{
-			Path:        manualPath,
-			Asset:       manualAsset,
-			DeleteAsset: manualDeleteZip,
+			Path:  manualPath,
+			Asset: manualAsset,
+			//DeleteZip: manualDeleteZip,
 		},
 	}
 	client.Opts = opt

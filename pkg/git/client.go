@@ -75,8 +75,21 @@ func (inst *Client) DownloadReleaseAsset() (*DownloadResponse, error) {
 		return nil, err
 	}
 	log.Infof("found asset: [name: %s, os: %s, arch: %s]", opt.Repo, opt.OS, opt.Arch)
-	res, err := inst.InstallAsset(asset)
-	res.ReleaseAsset = asset
+	url := asset.GetBrowserDownloadURL()
+	log.Infof("release dl url:%s", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	filename := path.Base(url)
+	res, err := inst.unPacAsset(filename, resp.Body, opt)
+	return res, err
+}
+
+func (inst *Client) DownloadReleaseOnly() (*DownloadResponse, error) {
+	inst.Opts.ManualInstall.DeleteZip = false
+	res, err := inst.DownloadReleaseAsset()
 	return res, err
 }
 
@@ -169,7 +182,7 @@ func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOp
 	}
 	log.Infof("rename tmp old: %s new:%s", destination+tempExt, destination)
 	defer func() {
-		if opt.ManualInstall.DeleteAsset == false { //dont delete when doing manual install
+		if opt.ManualInstall.DeleteZip == true { //dont delete when doing manual install
 			log.Infof("delete:%s", destination+tempExt)
 			_ = os.Remove(destination + tempExt)
 			log.Infof("delete:%s", destination)

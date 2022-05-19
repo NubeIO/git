@@ -39,7 +39,7 @@ func runRoot(cmd *cobra.Command, args []string) {
 		fmt.Println(cmd.UsageString())
 		os.Exit(1)
 	}
-	ass, err := client.DownloadReleaseAsset()
+	ass, err := client.DownloadReleaseOnly()
 	if err != nil {
 		log.Errorln(err)
 		return
