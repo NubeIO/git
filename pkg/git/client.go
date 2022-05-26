@@ -60,10 +60,10 @@ type DownloadResponse struct {
 	ExtractedVersion string //version number of the asset eg:v0.1.1
 }
 
-// DownloadReleaseAsset downloads a release asset file.
+// DownloadInstall downloads a release asset file.
 // first returns release asset info.
 // third returns initialize error info.
-func (inst *Client) DownloadReleaseAsset() (*DownloadResponse, error) {
+func (inst *Client) DownloadInstall() (*DownloadResponse, error) {
 	opt := inst.Opts
 	release, err := inst.GetRelease()
 	if err != nil {
@@ -84,6 +84,10 @@ func (inst *Client) DownloadReleaseAsset() (*DownloadResponse, error) {
 	defer resp.Body.Close()
 	filename := path.Base(url)
 	res, err := inst.unPacAsset(filename, resp.Body, opt)
+	if err != nil {
+		return nil, err
+	}
+	res.ReleaseAsset = asset
 	return res, err
 }
 
@@ -91,7 +95,7 @@ func (inst *Client) DownloadReleaseAsset() (*DownloadResponse, error) {
 func (inst *Client) DownloadOnly() (*DownloadResponse, error) {
 	inst.Opts.DeleteZip = false
 	inst.Opts.downloadOnly = true
-	res, err := inst.DownloadReleaseAsset()
+	res, err := inst.DownloadInstall()
 	return res, err
 }
 
@@ -160,7 +164,6 @@ func (inst *Client) InstallAsset(asset *ReleaseAsset) (*DownloadResponse, error)
 }
 
 func (inst *Client) unPacAsset(filename string, body io.ReadCloser, opt *AssetOptions) (*DownloadResponse, error) {
-	fmt.Println(111, inst.Opts.DeleteZip)
 	destination := filepath.Join(opt.DestPath, filename)
 	tempExt := ".rubix-downloads"
 

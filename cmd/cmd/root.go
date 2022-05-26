@@ -48,6 +48,7 @@ func runRoot(cmd *cobra.Command, args []string) {
 			log.Errorln(err)
 			return
 		}
+		return
 	}
 	if unzipExisting {
 		resp, err = client.InstallFromZip(existingPath, existingAsset, deleteZip)
@@ -55,8 +56,14 @@ func runRoot(cmd *cobra.Command, args []string) {
 			log.Errorln(err)
 			return
 		}
+		return
 	}
 
+	resp, err = client.DownloadInstall()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
 	log.Infoln("download completed GetName", resp.ReleaseAsset.GetName())
 	log.Infoln("download completed Destination:", resp.Destination)
 	log.Infoln("download completed DestinationFull:", resp.DestinationFull)
@@ -70,7 +77,7 @@ var (
 )
 
 var (
-	asset          string
+	//asset          string
 	owner          string
 	tag            = "latest"
 	osName         = runtime.GOOS
@@ -100,7 +107,7 @@ func init() {
 	pFlagSet.BoolVarP(&versionDirName, "version-in-target", "", false, "set this to true and the asset version number will be used in the naming of the target dir (eg: /bin/bios/rubix-0.5)")
 
 	flagSet := rootCmd.Flags()
-	flagSet.StringVar(&asset, "asset", asset, "asset name keyword")
+
 	flagSet.StringVar(&tag, "tag", tag, "release tag")
 	flagSet.StringVar(&osName, "os", osName, "os keyword")
 	flagSet.StringVar(&osAlias, "os-alias", osAlias, "os keyword alias")
