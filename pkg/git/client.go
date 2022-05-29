@@ -55,6 +55,7 @@ func (inst *Client) GetRelease() (*RepositoryRelease, error) {
 
 type DownloadResponse struct {
 	RepositoryRelease *RepositoryRelease
+	AssetName         string
 }
 
 // Download downloads a release asset file.
@@ -96,6 +97,7 @@ func (inst *Client) Download(destination string) (*DownloadResponse, error) {
 		return nil, err
 	}
 	res := &DownloadResponse{}
+	res.AssetName = filename
 	res.RepositoryRelease = release
 	return res, err
 }
