@@ -90,7 +90,7 @@ func (inst *Client) Download(destination string) (*DownloadResponse, error) {
 	}
 	defer out.Close()
 	defer resp.Body.Close()
-
+	log.Infof("put asset at destination: %s", destination)
 	// Writer the body to file
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
