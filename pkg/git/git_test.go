@@ -1,39 +1,30 @@
 package git
 
 import (
-	"os"
+	"context"
+	pprint "github.com/NubeIO/git/pkg/helpers/print"
+	"github.com/google/go-github/v32/github"
 	"testing"
 )
 
-/*
-to run
-export GITHUB_TOKEN=YOUR-token
-(cd pkg/github && go test -run TestInfo)
-*/
-
-func githubToken() string {
-	return os.Getenv("GITHUB_TOKEN")
-}
-func githubRepo() string {
-	return os.Getenv("GITHUB_REPO")
-}
-func githubTag() string {
-	return os.Getenv("GITHUB_TAG")
-}
-
 func TestInfo(t *testing.T) {
 
-	//fmt.Println("GITHUB_TOKEN", githubToken(), "REPO", Repository(githubRepo()), "TAG", githubTag())
-	//
-	//ctx := context.Background()
-	//client := NewClient(githubToken())
-	//
-	//resp, err := client.GetRelease(ctx, Repository(githubRepo()), githubTag())
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return
-	//}
-	//
-	//fmt.Println("GetRelease", resp.GetName())
+	opts := &AssetOptions{
+		Owner: "NubeIO",
+		Repo:  "releases",
+		Tag:   "latest",
+		Arch:  "",
+	}
+
+	token := "Z2hwX2pDU0tteWxrVjkzN1Z5NmFFUHlPVFpObEhoTEdITjBYemxkSA=="
+
+	ctx := context.Background()
+	client := NewClient(DecodeToken(token), opts, ctx)
+
+	_, i, _, err := client.GetContents("NubeIO", "releases", "flow", &github.RepositoryContentGetOptions{})
+	if err != nil {
+		return
+	}
+	pprint.PrintJOSN(i)
 
 }
