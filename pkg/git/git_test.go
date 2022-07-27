@@ -24,6 +24,49 @@ type Release struct {
 	} `json:"apps"`
 }
 
+func TestList(t *testing.T) {
+
+	//word1 := "nubeio-rubix-app-bbb-rest-py-0.0.2-0f2f6c5d.amd64.zip"
+	//
+	//word2 := "bbb-rest-py"
+	//res, err := edlib.StringsSimilarity(word1, word2, edlib.Levenshtein)
+	//if err != nil {
+	//	fmt.Println(err)
+	//} else {
+	//	fmt.Printf("Similarity: %f", res)
+	//}
+}
+
+func TestDownload(t *testing.T) {
+	opts := &AssetOptions{
+		Owner: "NubeIO",
+		//Repo:  "flow-framework",
+		Repo: "wires-builds",
+		Tag:  "latest",
+		//Arch:  "armv7",
+		Arch: "amd64",
+	}
+
+	token := "Z2hwX2pDU0tteWxrVjkzN1Z5NmFFUHlPVFpObEhoTEdITjBYemxkSA=="
+
+	ctx := context.Background()
+	client := NewClient(DecodeToken(token), opts, ctx)
+	download, err := client.Download(DownloadOptions{
+		DownloadDestination: "./",
+		AssetName:           "flow-framework",
+		MatchName:           true,
+		MatchArch:           true,
+		MatchOS:             false,
+		DownloadFirst:       true,
+	})
+	fmt.Println(err)
+	if err != nil {
+		return
+	}
+	pprint.Print(download)
+
+}
+
 func TestInfo(t *testing.T) {
 
 	opts := &AssetOptions{
@@ -51,12 +94,5 @@ func TestInfo(t *testing.T) {
 	json.Unmarshal([]byte(content), &r)
 	fmt.Println()
 	pprint.Print(r.Release)
-
-	//_, raw, err := client.DownloadContents("NubeIO", "releases", "flow/v0.6.1.json", 0, &github.RepositoryContentGetOptions{})
-	//fmt.Println(err)
-	//pprint.Log(raw)
-	//var r Release
-	//json.Unmarshal(raw, &r)
-	//pprint.Log(r)
 
 }

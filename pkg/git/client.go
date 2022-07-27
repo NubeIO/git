@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"errors"
 
 	"fmt"
 	"github.com/google/go-github/v32/github"
@@ -58,8 +59,29 @@ type DownloadResponse struct {
 	AssetName         string
 }
 
+type DownloadOptions struct {
+	DownloadDestination string `json:"download_destination"`
+	AssetName           string `json:"asset_name"`
+	MatchName           bool   `json:"match_name"`
+	MatchArch           bool   `json:"match_arch"`
+	MatchOS             bool   `json:"match_os"`
+	DownloadFirst       bool   `json:"download_first"`
+}
+
 // Download downloads a release asset file.
-func (inst *Client) Download(destination string) (*DownloadResponse, error) {
+func (inst *Client) Download(options DownloadOptions) (*DownloadResponse, error) {
+	var assetName = options.AssetName
+	if assetName == "" {
+		return nil, errors.New("asset name can not be empty (the asset name my not always be the repo name), try flow-framework")
+	}
+	var destination = options.DownloadDestination
+	if destination == "" {
+		return nil, errors.New("destination can not be empty try, /data/store/apps")
+	}
+	var matchName = options.MatchName
+	var matchArch = options.MatchArch
+	var matchOS = options.MatchOS
+	var downloadFirst = options.DownloadFirst
 	opt := inst.Opts
 	release, err := inst.GetRelease()
 	if err != nil {
@@ -69,7 +91,7 @@ func (inst *Client) Download(destination string) (*DownloadResponse, error) {
 	if len(release.Assets) == 0 {
 		url = *release.ZipballURL
 	} else {
-		asset := inst.findReleaseAsset(release)
+		asset := inst.findReleaseAsset(release, assetName, matchName, matchArch, matchOS, downloadFirst)
 		if asset == nil {
 			err := fmt.Errorf("not found asset: [name: %s, os: %s, arch: %s]", opt.Repo, opt.OS, opt.Arch)
 			return nil, err
@@ -102,12 +124,23 @@ func (inst *Client) Download(destination string) (*DownloadResponse, error) {
 	return res, err
 }
 
-func (inst *Client) findReleaseAsset(release *RepositoryRelease) *ReleaseAsset {
+func (inst *Client) findReleaseAsset(release *RepositoryRelease, assetName string, matchName, matchArch, matchOS, downloadFirst bool) *ReleaseAsset {
+	if downloadFirst {
+		if len(release.Assets) > 0 {
+			return release.Assets[0]
+		} else {
+			return nil
+		}
+	}
 	opt := inst.Opts
 	for _, asset := range release.Assets {
 		name := strings.ToLower(asset.GetName())
-		log.Infof("matched: [name: %s]", name)
-		matchedName := strings.Contains(name, strings.ToLower(opt.Repo))
+		if assetName == "" {
+			assetName = opt.Repo
+		}
+		//log.Infof("matched: [name: %s]", name)
+		matchedName := strings.Contains(name, strings.ToLower(assetName))
+		//fmt.Println(matchedName, name, assetName)
 		matchedOS := strings.Contains(name, strings.ToLower(opt.OS))
 		if !matchedOS {
 			for _, v := range opt.OSAlias {
@@ -124,16 +157,18 @@ func (inst *Client) findReleaseAsset(release *RepositoryRelease) *ReleaseAsset {
 				}
 			}
 		}
-		log.Infof("matched: [name: %s, os: %t, arch: %t]", name, matchedOS, matchedArch)
-		if opt.MatchOS {
-			if matchedName && matchedArch && matchedOS {
-				return asset
-			}
-		} else {
+		//log.Infof("matched: [name: %s, os: %t, arch: %t]", name, matchedOS, matchedArch)
+		if matchArch && matchName {
 			if matchedName && matchedArch {
 				return asset
 			}
 		}
+		if matchOS && matchName {
+			if matchedName && matchedOS {
+				return asset
+			}
+		}
+
 	}
 	return nil
 }
