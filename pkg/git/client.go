@@ -68,10 +68,83 @@ type DownloadOptions struct {
 	DownloadFirst       bool   `json:"download_first"`
 }
 
-func (inst *Client) DownloadReleaseAsset(owner, repo string, id int64) (rc io.ReadCloser, redirectURL string, err error) {
-
+func (inst *Client) downloadReleaseAsset(owner, repo string, id int64) (rc io.ReadCloser, redirectURL string, err error) {
 	return inst.hub.Repositories.DownloadReleaseAsset(inst.CTX, owner, repo, id, nil)
+}
 
+func (inst *Client) DownloadRelease(owner, repo, destination string, id int64) error {
+	if destination == "" {
+		return errors.New("destination can not be empty")
+	}
+	_, url, err := inst.downloadReleaseAsset(owner, repo, id)
+	if err != nil {
+		return err
+	}
+	return downloadFile(destination, url)
+}
+
+func downloadFile(filepath string, url string) (err error) {
+	// Create the file
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	// Get the data
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	// Writer the body to file
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type AssetInfo struct {
+	RepositoryRelease *github.ReleaseAsset `json:"repository_release"`
+	Url               string               `json:"url"`
+}
+
+// MatchAssetInfo get info from a release asset file.
+func (inst *Client) MatchAssetInfo(options DownloadOptions) (*AssetInfo, error) {
+	var assetName = options.AssetName
+	if assetName == "" {
+		return nil, errors.New("asset name can not be empty (the asset name my not always be the repo name), try flow-framework")
+	}
+	var destination = options.DownloadDestination
+	if destination == "" {
+		return nil, errors.New("destination can not be empty try, /data/store/apps")
+	}
+	var matchName = options.MatchName
+	var matchArch = options.MatchArch
+	var matchOS = options.MatchOS
+	var downloadFirst = options.DownloadFirst
+	opt := inst.Opts
+	release, err := inst.GetRelease()
+	if err != nil {
+		return nil, err
+	}
+	url := ""
+	var asset *github.ReleaseAsset
+	if len(release.Assets) == 0 {
+		url = *release.ZipballURL
+	} else {
+		asset = inst.findReleaseAsset(release, assetName, matchName, matchArch, matchOS, downloadFirst)
+		if asset == nil {
+			err := fmt.Errorf("not found asset: [name: %s, os: %s, arch: %s]", opt.Repo, opt.OS, opt.Arch)
+			return nil, err
+		}
+		url = asset.GetBrowserDownloadURL()
+	}
+	resp := &AssetInfo{
+		RepositoryRelease: asset,
+		Url:               url,
+	}
+	return resp, err
 }
 
 // Download downloads a release asset file.
