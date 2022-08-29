@@ -68,6 +68,12 @@ type DownloadOptions struct {
 	DownloadFirst       bool   `json:"download_first"`
 }
 
+func (inst *Client) DownloadReleaseAsset(owner, repo string, id int64) (rc io.ReadCloser, redirectURL string, err error) {
+
+	return inst.hub.Repositories.DownloadReleaseAsset(inst.CTX, owner, repo, id, nil)
+
+}
+
 // Download downloads a release asset file.
 func (inst *Client) Download(options DownloadOptions) (*DownloadResponse, error) {
 	var assetName = options.AssetName
