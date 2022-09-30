@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-//getAssetVersion
 // takes in flow-framework-0.5.0-340c0ad8.amd64.zip
 // return 0.5.0
 func getAssetVersion(asset string) string {
@@ -20,7 +19,6 @@ func getAssetVersion(asset string) string {
 	return ""
 }
 
-//getAssetVersion
 // takes in /home/user/../bin/rubix-bios-app/v1.5.2
 // return /home/user/bin/rubix-bios-app/v1.5.2
 func cleanPath(asset string) string {

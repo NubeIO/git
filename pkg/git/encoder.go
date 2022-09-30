@@ -9,5 +9,4 @@ func EncodeToken(token string) string {
 func DecodeToken(token string) string {
 	data, _ := base64.StdEncoding.DecodeString(token)
 	return string(data)
-
 }
