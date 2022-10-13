@@ -2,7 +2,7 @@
 
 add github token
 
-## just download 
+## just download
 
 ```
 go run main.go --download=true --owner=NubeIO  --repo=rubix-service --dest=../bin  --asset=rubix-service --arch=amd64 --tag=latest --token=12

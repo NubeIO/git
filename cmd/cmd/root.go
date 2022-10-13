@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/NubeIO/git/pkg/git"
-	"github.com/fatih/color"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"os"
 	"runtime"
@@ -32,20 +30,6 @@ func initClient() (*git.Client, error) {
 }
 
 func runRoot(cmd *cobra.Command, args []string) {
-	client, err := initClient()
-
-	if err != nil {
-		color.Magenta(err.Error())
-		fmt.Println(cmd.UsageString())
-		os.Exit(1)
-	}
-
-	resp, err := client.Download(dest)
-	if err != nil {
-		log.Errorln(err)
-		return
-	}
-	log.Infoln("download completed GetName", resp.RepositoryRelease.GetName())
 
 }
 
@@ -56,7 +40,6 @@ var (
 )
 
 var (
-	//asset          string
 	owner     string
 	tag       = "latest"
 	osName    = runtime.GOOS
