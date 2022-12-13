@@ -170,7 +170,7 @@ func (inst *Client) findReleaseAsset(release *RepositoryRelease, assetName strin
 		if assetName == "" {
 			assetName = opt.Repo
 		}
-		matchedName := strings.Contains(name, strings.ToLower(assetName))
+		matchedName := strings.HasPrefix(name, fmt.Sprintf("%s-", assetName))
 		matchedOS := strings.Contains(name, strings.ToLower(opt.OS))
 		if !matchedOS {
 			for _, v := range opt.OSAlias {
