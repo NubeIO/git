@@ -39,11 +39,9 @@ func TestGetAssetInfo(t *testing.T) {
 		AssetName:           "bacnetmaster",
 		MatchName:           true,
 		MatchArch:           true,
-		MatchOS:             false,
 	})
 	fmt.Println(err, releaseAsset.ID)
 	pprint.PrintJOSN(releaseAsset)
-
 }
 
 func TestList(t *testing.T) {

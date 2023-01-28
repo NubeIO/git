@@ -63,7 +63,6 @@ type DownloadOptions struct {
 	AssetName           string `json:"asset_name"`
 	MatchName           bool   `json:"match_name"`
 	MatchArch           bool   `json:"match_arch"`
-	MatchOS             bool   `json:"match_os"`
 }
 
 func (inst *Client) downloadReleaseAsset(owner, repo string, id int64) (rc io.ReadCloser, redirectURL string, err error) {
@@ -119,15 +118,13 @@ func (inst *Client) GetReleaseAsset(options DownloadOptions) (*ReleaseAsset, err
 	}
 	var matchName = options.MatchName
 	var matchArch = options.MatchArch
-	var matchOS = options.MatchOS
-	opt := inst.Opts
 	release, err := inst.GetRelease()
 	if err != nil {
 		return nil, err
 	}
-	asset := inst.findReleaseAsset(release, assetName, matchName, matchArch, matchOS)
+	asset := inst.findReleaseAsset(release, assetName, matchName, matchArch)
 	if asset == nil {
-		err := fmt.Errorf("not found asset: [name: %s, os: %s, arch: %s]", opt.Repo, opt.OS, opt.Arch)
+		err := fmt.Errorf("not found asset (name: %s, arch: %s)", inst.Opts.Repo, inst.Opts.Arch)
 		return nil, err
 	}
 	return asset, nil
@@ -163,7 +160,7 @@ func (inst *Client) DownloadZipball(options DownloadOptions) (*DownloadResponse,
 	return res, err
 }
 
-func (inst *Client) findReleaseAsset(release *RepositoryRelease, assetName string, matchName, matchArch, matchOS bool) *ReleaseAsset {
+func (inst *Client) findReleaseAsset(release *RepositoryRelease, assetName string, matchName, matchArch bool) *ReleaseAsset {
 	opt := inst.Opts
 	for _, asset := range release.Assets {
 		name := strings.ToLower(asset.GetName())
@@ -171,29 +168,17 @@ func (inst *Client) findReleaseAsset(release *RepositoryRelease, assetName strin
 			assetName = opt.Repo
 		}
 		matchedName := strings.HasPrefix(name, fmt.Sprintf("%s-", assetName))
-		matchedOS := strings.Contains(name, strings.ToLower(opt.OS))
-		if !matchedOS {
-			for _, v := range opt.OSAlias {
-				if matchedOS = strings.Contains(name, v); matchedOS {
-					break
-				}
-			}
-		}
 		matchedArch := strings.Contains(name, strings.ToLower(opt.Arch))
-		if !matchedArch {
-			for _, v := range opt.ArchAlias {
-				if matchedArch = strings.Contains(name, v); matchedArch {
-					break
-				}
-			}
-		}
 		if matchArch && matchName {
 			if matchedName && matchedArch {
 				return asset
 			}
-		}
-		if matchOS && matchName {
-			if matchedName && matchedOS {
+		} else if matchArch {
+			if matchedArch {
+				return asset
+			}
+		} else if matchName {
+			if matchedName {
 				return asset
 			}
 		}
