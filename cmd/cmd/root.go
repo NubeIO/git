@@ -2,13 +2,11 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/NubeIO/git/pkg/git"
 	"github.com/spf13/cobra"
 	"os"
 	"runtime"
-	"strings"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -26,11 +24,9 @@ func initClient() (*git.Client, error) {
 	ctx := context.Background()
 	client := git.NewClient(githubToken(), opt, ctx)
 	return client, err
-
 }
 
 func runRoot(cmd *cobra.Command, args []string) {
-
 }
 
 var (
@@ -64,7 +60,6 @@ func init() {
 	flagSet.StringVar(&osAlias, "os-alias", osAlias, "os keyword alias")
 	flagSet.StringVar(&arch, "arch", arch, "arch keyword")
 	flagSet.StringVar(&archAlias, "arch-alias", archAlias, "arch keyword alias")
-
 }
 
 func githubToken() string {
@@ -75,38 +70,10 @@ func githubToken() string {
 }
 
 func makeAssetOptions() (*git.AssetOptions, error) {
-
-	osAliasMap, err := parseAlias(osAlias)
-	if err != nil {
-		return nil, errors.New("parse alias error: see flags --os-alias")
-	}
-
-	archAliasMap, err := parseAlias(archAlias)
-	if err != nil {
-		return nil, errors.New("parse alias error: see flags --arch-alias")
-	}
-
 	return &git.AssetOptions{
-		Owner:     owner,
-		Repo:      repo,
-		Tag:       tag,
-		OS:        osName,
-		OSAlias:   osAliasMap[osName],
-		Arch:      arch,
-		ArchAlias: archAliasMap[arch],
+		Owner: owner,
+		Repo:  repo,
+		Tag:   tag,
+		Arch:  arch,
 	}, nil
-}
-
-func parseAlias(flagAlias string) (map[string][]string, error) {
-	ret := map[string][]string{}
-	aliases := strings.Split(flagAlias, ";")
-	for _, alias := range aliases {
-		kv := strings.Split(alias, ":")
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("parse alias: %v", kv)
-		}
-		k, v := kv[0], strings.Split(kv[1], ",")
-		ret[k] = v
-	}
-	return ret, nil
 }
