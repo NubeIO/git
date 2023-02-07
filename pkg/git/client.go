@@ -63,6 +63,7 @@ type DownloadOptions struct {
 	AssetName           string `json:"asset_name"`
 	MatchName           bool   `json:"match_name"`
 	MatchArch           bool   `json:"match_arch"`
+	NameContains        bool   `json:"name_contains"`
 }
 
 func (inst *Client) downloadReleaseAsset(owner, repo string, id int64) (rc io.ReadCloser, redirectURL string, err error) {
@@ -118,11 +119,12 @@ func (inst *Client) GetReleaseAsset(options DownloadOptions) (*ReleaseAsset, err
 	}
 	var matchName = options.MatchName
 	var matchArch = options.MatchArch
+	var nameContains = options.NameContains
 	release, err := inst.GetRelease()
 	if err != nil {
 		return nil, err
 	}
-	asset := inst.findReleaseAsset(release, assetName, matchName, matchArch)
+	asset := inst.findReleaseAsset(release, assetName, matchName, matchArch, nameContains)
 	if asset == nil {
 		err := fmt.Errorf("not found asset (name: %s, arch: %s)", inst.Opts.Repo, inst.Opts.Arch)
 		return nil, err
@@ -160,13 +162,14 @@ func (inst *Client) DownloadZipball(options DownloadOptions) (*DownloadResponse,
 	return res, err
 }
 
-func (inst *Client) findReleaseAsset(release *RepositoryRelease, assetName string, matchName, matchArch bool) *ReleaseAsset {
+func (inst *Client) findReleaseAsset(release *RepositoryRelease, assetName string, matchName, matchArch, nameContains bool) *ReleaseAsset {
 	opt := inst.Opts
 	for _, asset := range release.Assets {
 		name := strings.ToLower(asset.GetName())
 		if assetName == "" {
 			assetName = opt.Repo
 		}
+
 		matchedName := strings.HasPrefix(name, fmt.Sprintf("%s-", assetName))
 		matchedArch := strings.Contains(name, strings.ToLower(opt.Arch))
 		if matchArch && matchName {
@@ -177,8 +180,12 @@ func (inst *Client) findReleaseAsset(release *RepositoryRelease, assetName strin
 			if matchedArch {
 				return asset
 			}
-		} else if matchName {
+		} else if matchName { // strict match
 			if matchedName {
+				return asset
+			}
+		} else if nameContains { // not so strict
+			if strings.Contains(name, assetName) {
 				return asset
 			}
 		}

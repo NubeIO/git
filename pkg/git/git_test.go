@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+const token = "Z2hwX3pIdklCZFZPWmd5N1M2YXFtcHBWMHRkcndIbUk5eTNEMnlQMg=="
+
 func TestDownloadReleaseAsset(t *testing.T) {
 	opts := &AssetOptions{
 		Owner: "NubeIO",
@@ -15,7 +17,6 @@ func TestDownloadReleaseAsset(t *testing.T) {
 		Tag:   "latest",
 		Arch:  "armv7",
 	}
-	token := "Z2hwX2pDU0tteWxrVjkzN1Z5NmFFUHlPVFpObEhoTEdITjBYemxkSA=="
 	ctx := context.Background()
 	client := NewClient(DecodeToken(token), opts, ctx)
 	err := client.DownloadReleaseAsset(opts.Owner, opts.Repo, "./test.zip", 75784608)
@@ -25,34 +26,31 @@ func TestDownloadReleaseAsset(t *testing.T) {
 func TestGetAssetInfo(t *testing.T) {
 	opts := &AssetOptions{
 		Owner: "NubeIO",
-		Repo:  "flow-framework",
-		Tag:   "latest",
-		Arch:  "amd64",
+		Repo:  "rubix-io-fw",
+		Tag:   "v3.4",
+		Arch:  "",
 	}
-
-	token := "Z2hwX2pDU0tteWxrVjkzN1Z5NmFFUHlPVFpObEhoTEdITjBYemxkSA=="
 
 	ctx := context.Background()
 	client := NewClient(DecodeToken(token), opts, ctx)
 	releaseAsset, err := client.GetReleaseAsset(DownloadOptions{
 		DownloadDestination: ".",
-		AssetName:           "bacnetmaster",
-		MatchName:           true,
-		MatchArch:           true,
+		AssetName:           "r-io-modbus-v3.4",
+		MatchName:           false,
+		MatchArch:           false,
+		NameContains:        true,
 	})
-	fmt.Println(err, releaseAsset.ID)
+	fmt.Println(err, releaseAsset)
 	pprint.PrintJOSN(releaseAsset)
 }
 
 func TestList(t *testing.T) {
 	opts := &AssetOptions{
 		Owner: "NubeIO",
-		Repo:  "nubeio-rubix-app-lora-serial-py",
+		Repo:  "rubix-io-fw",
 		Tag:   "latest",
-		Arch:  "armv7",
+		Arch:  "",
 	}
-
-	token := "Z2hwX2pDU0tteWxrVjkzN1Z5NmFFUHlPVFpObEhoTEdITjBYemxkSA=="
 
 	ctx := context.Background()
 	client := NewClient(DecodeToken(token), opts, ctx)
@@ -74,8 +72,6 @@ func TestDownloadZipball(t *testing.T) {
 		Tag:   "latest",
 	}
 
-	token := "Z2hwX2pDU0tteWxrVjkzN1Z5NmFFUHlPVFpObEhoTEdITjBYemxkSA=="
-
 	ctx := context.Background()
 	client := NewClient(DecodeToken(token), opts, ctx)
 	download, err := client.DownloadZipball(DownloadOptions{
@@ -95,7 +91,7 @@ func TestInfo(t *testing.T) {
 		Repo:  "releases",
 		Tag:   "latest",
 	}
-	token := "Z2hwX2pDU0tteWxrVjkzN1Z5NmFFUHlPVFpObEhoTEdITjBYemxkSA=="
+
 	ctx := context.Background()
 	client := NewClient(DecodeToken(token), opts, ctx)
 	_, dir, _, err := client.GetContents("NubeIO", "releases", "flow", &github.RepositoryContentGetOptions{})
